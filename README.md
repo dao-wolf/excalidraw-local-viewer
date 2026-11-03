@@ -43,8 +43,9 @@ Why the pane differs: there, the browser's file picker rejects at once and Excal
 file name already exists is dropped without a message. `viewer/pane-fix.js` removes the picker in the pane and stamps each
 download's name. Override the choice with `?save=download` or `?save=picker`.
 
-In the pane, do one save or export at a time. Two downloads started in the same instant (for example PNG and SVG
-clicked back to back by a script) lost one of the two in three of four tries; started a few seconds apart, every one landed.
+In the pane, do one save or export at a time. Two downloads started in the same instant (PNG and SVG clicked back to
+back by a script) lost one of the two in both tries; started alone or a few seconds apart, 11 of 12 landed (the one miss was
+unexplained).
 
 To check that a save really wrote a file, do not trust the screen. Run:
 
