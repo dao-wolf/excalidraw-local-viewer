@@ -1,6 +1,7 @@
 // Loads one board from /boards/ and shows it in Excalidraw. Usage: /?board=name.excalidraw (default sample.excalidraw)
 (function () {
-  var board = new URLSearchParams(location.search).get('board') || 'sample.excalidraw';
+  var asked = new URLSearchParams(location.search).get('board');
+  var board = asked || 'sample.excalidraw';
   var valid = /^[A-Za-z0-9][A-Za-z0-9._ -]*\.excalidraw$/.test(board) && board.indexOf('..') < 0;
   var base = valid ? board.replace(/\.excalidraw$/, '') : 'board';
 
@@ -26,5 +27,9 @@
     .then(function (data) {
       render({ elements: data.elements || [], appState: { viewBackgroundColor: '#ffffff', name: base }, scrollToContent: true });
     })
-    .catch(function (err) { console.error('Could not load ' + board + ': ' + err.message); render(null); });
+    .catch(function (err) {
+      // The default sample may be absent when --boards points at another folder: start empty, say nothing.
+      if (asked) console.error('Could not load ' + board + ': ' + err.message);
+      render(null);
+    });
 })();
