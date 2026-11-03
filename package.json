@@ -1,0 +1,17 @@
+{
+  "name": "excalidraw-local-viewer",
+  "version": "0.1.0",
+  "description": "Unofficial local viewer for Excalidraw boards: offline, pinned and hash-checked.",
+  "private": true,
+  "license": "MIT",
+  "scripts": {
+    "serve": "python3 scripts/serve.py",
+    "verify": "python3 scripts/vendor.py --check",
+    "test": "python3 -m unittest discover -s tests -v"
+  },
+  "dependencies": {
+    "@excalidraw/excalidraw": "0.17.6",
+    "react": "18.2.0",
+    "react-dom": "18.2.0"
+  }
+}

@@ -1,0 +1,38 @@
+Third-party files in viewer/vendor/
+
+This project is unofficial and is not affiliated with, or endorsed by, the Excalidraw project.
+The files below are copied unmodified from npm tarballs fetched from registry.npmjs.org with
+`npm pack --ignore-scripts`. Each tarball's sha512 matched the integrity value in package-lock.json
+(which equals the registry's dist.integrity) before extraction. viewer/vendor/MANIFEST.sha256 lists a
+SHA-256 for every vendored file, and `python3 scripts/vendor.py --check` verifies them.
+
+1. @excalidraw/excalidraw 0.17.6, MIT licence
+   Tarball integrity: sha512-fyCl+zG/Z5yhHDh5Fq2ZGmphcrALmuOdtITm8gN4d8w4ntnaopTXcTfnAAaU3VleDC6LhTkoLOTG6P5kgREiIg==
+   Files:
+     dist/excalidraw.production.min.js and its notices file dist/excalidraw.production.min.js.LICENSE.txt
+     excalidraw-assets/ : six fonts (Assistant, Cascadia, Virgil) and the lazy-loaded chunk
+       vendor-677e88ca78c86bddf13d.js with its notices file vendor-677e88ca78c86bddf13d.js.LICENSE.txt.
+       The chunk holds the file-saving code (showSaveFilePicker, createWritable and the download fallback)
+       and also Mermaid-to-Excalidraw, d3, DOMPurify, js-yaml and pica. Without it, "Save to..." and
+       the exports do nothing. Its notices file lists the licences of the libraries bundled in it.
+   Not included: the 53 locale files in excalidraw-assets/locales/ (the English interface loads without them).
+   The tarball itself ships no LICENSE file; its package.json declares "MIT". The licence text in
+   viewer/vendor/excalidraw/LICENSE was taken from the project's tag:
+     https://github.com/excalidraw/excalidraw/blob/v0.17.6/LICENSE
+     tag v0.17.6 (annotated, 2024-04-17T19:57:47Z) -> commit 0dbd2a39319d41fda37b2945dea0dcbd58d6a564
+     1,067 bytes, git blob 8a844bc750a313db95d147bea9e4c9537b2cebc0 (scripts/vendor.py checks this hash)
+   The npm tarball has no provenance attestation, so nothing ties it cryptographically to that tag.
+
+2. react 18.2.0, MIT licence, Copyright (c) Facebook, Inc. and its affiliates.
+   Tarball integrity: sha512-/3IjMdb2L9QbBdWiW5e3P2/npwMBaU9mHCSCUzNln0ZCYbcfTsGbTJrU/kGemdH2IWmB2ioZ+zkxtmq6g09fGQ==
+   File: umd/react.production.min.js. Licence: viewer/vendor/LICENSE-react (from the tarball).
+
+3. react-dom 18.2.0, MIT licence, Copyright (c) Facebook, Inc. and its affiliates.
+   Tarball integrity: sha512-6IMTriUmvsjHUjNtEDudZfuDQUoWXVxKHhlEGSk81n4YFS+r/Kl99wXiwlVXtPBtJenozv2P+hxDsw9eA7Xo6g==
+   File: umd/react-dom.production.min.js. Licence: viewer/vendor/LICENSE-react-dom (from the tarball).
+
+package-lock.json also records three packages that these ship as dependencies for their npm builds
+(js-tokens 4.0.0, loose-envify 1.4.0, scheduler 0.23.2, all MIT). None of them is vendored: the UMD
+files above are self-contained.
+
+The licence of the rest of this repository is in LICENSE (MIT).
