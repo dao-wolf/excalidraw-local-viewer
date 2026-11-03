@@ -3,10 +3,10 @@
 An **unofficial** way to open, edit and export [Excalidraw](https://excalidraw.com) boards on your own machine, with no
 internet. It is not affiliated with, or endorsed by, the Excalidraw project.
 
-It exists because three things went wrong with the usual routes: the Claude app's browser pane cannot reach excalidraw.com
-files on your disk, a page that loads Excalidraw from a CDN stops working offline, and saving did nothing in some
-browsers. Here a pinned copy of Excalidraw 0.17.6 is checked in with its hashes, so the page works offline and its
-files are the ones npm published.
+It exists because of three problems with the usual routes: excalidraw.com, opened in the Claude app's browser pane, can't
+load files from your own machine; a page that loads Excalidraw from a CDN stops working offline; and in the Claude app's
+browser pane, Excalidraw's own save silently does nothing without the fix in this repo. Here a pinned copy of Excalidraw
+0.17.6 is checked in with its hashes, so the page works offline and its files are the ones npm published.
 
 ## Run it
 
@@ -25,7 +25,7 @@ python3 scripts/serve.py --boards ~/path/to/boards
 ```
 
 The server binds to 127.0.0.1 only, serves nothing except `viewer/` and that one boards folder, and answers 404 for
-everything else. Only open boards that you, or a tool you trust, made: a malicious board file is the main way to
+everything else. Only open boards that you, or a tool you trust, made: a malicious board file is the likeliest way to
 exploit an old Excalidraw.
 
 ## Saving and exporting
@@ -50,10 +50,11 @@ unexplained).
 To check that a save really wrote a file, do not trust the screen. Run:
 
 ```bash
-python3 tools/check_saved.py --since 2026-11-03T15:30 --name-contains my-board --require excalidraw,png,svg --wait 30 ~/Downloads
+python3 tools/check_saved.py --since <time before you saved> --name-contains my-board --require excalidraw,png,svg --wait 30 ~/Downloads
 ```
 
-It exits 0 only if each required kind has a valid new file.
+`--since` takes an ISO time (year-month-day, a `T`, then hour:minute). The script exits 0 only if each required kind has a
+valid new file.
 
 **Open** (the menu's Open, to load a board from disk): in the pane it uses the library's plain file input. Tested there by
 supplying a three-element board to that input: the scene changed from 12 to 3 elements and the page title followed. A
