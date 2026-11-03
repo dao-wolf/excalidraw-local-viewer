@@ -1,0 +1,6 @@
+name: excalidraw-local-viewer CodeQL configuration
+
+# viewer/vendor/ holds third-party files (minified Excalidraw, React and React DOM). They are not our code:
+# see NOTICE. Their versions are tracked through package.json and package-lock.json instead.
+paths-ignore:
+  - viewer/vendor
