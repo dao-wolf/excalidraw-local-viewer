@@ -4,6 +4,7 @@
   "description": "Unofficial local viewer for Excalidraw boards: offline, pinned and hash-checked.",
   "private": true,
   "license": "MIT",
+  "repository": "github:dao-wolf/excalidraw-local-viewer",
   "scripts": {
     "serve": "python3 scripts/serve.py",
     "verify": "python3 scripts/vendor.py --check",
