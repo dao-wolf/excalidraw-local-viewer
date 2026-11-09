@@ -28,6 +28,27 @@ The server binds to 127.0.0.1 only, serves nothing except `viewer/` and that one
 everything else. Only open boards that you, or a tool you trust, made: a malicious board file is the likeliest way to
 exploit an old Excalidraw.
 
+## Sticky notes and tags
+
+A small bar at the bottom of the board adds Miro-style stickies. Nothing to install: it uses Excalidraw's own rectangles
+and text.
+
+| To do this | Do this |
+|---|---|
+| Add a sticky | Click a colour (yellow, green, blue or pink). A square sticky appears at the centre of the view and its text box opens: type, then press Escape. A second sticky at the same spot is shifted a little so it does not hide the first |
+| Tag a sticky | Select the sticky, type the tag in the **Tag** box (up to 40 characters, one line), press Enter. The tag shows as a small label across the sticky's top edge |
+| Change a tag | Select the sticky, change the text in the Tag box, press Enter |
+| Remove a tag | Select the sticky and press **Clear**, or empty the Tag box and press Enter |
+| Edit the text of a tagged sticky | Press **Edit text** in the bar. (Double-clicking works too, but a tagged sticky is in a group, so it takes two double-clicks) |
+
+A tagged sticky and its tag are one group, so they move together. Selecting the tag or the sticky's text
+also lets you use the Tag box. Undo (Ctrl or Cmd + Z) works for adding and tagging.
+
+Boards stay plain Excalidraw JSON, and the files saved are the same as any other board. A sticky is a rectangle with
+bound text and a tag is a small rounded rectangle with bound text; both carry a `customData` marker (`kind: "sticky"` or
+`kind: "sticky-tag"`) that Excalidraw keeps and ignores. Excalidraw 0.17.6 without this bar loads them as plain
+rectangles with text; you just lose the bar. The rules live in `viewer/stickies.js`, the bar in `viewer/stickies-ui.js`.
+
 ## Saving and exporting
 
 Use Excalidraw's own menu (top left): **Save to...** or **Export image...**.
@@ -94,7 +115,8 @@ python3 scripts/vendor.py --check      # offline: compare every vendored file wi
 python3 scripts/vendor.py --refresh    # fetch the tarballs with npm pack --ignore-scripts, verify, copy
 ```
 
-Run the tests with `python3 -m unittest discover -s tests -v`.
+Run the tests with `python3 -m unittest discover -s tests -v`. The sticky tests run in Node 18 or later with no packages
+(`node --test tests/stickies.test.js`), and are skipped if Node is missing.
 
 ## Licence
 
