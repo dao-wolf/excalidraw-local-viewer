@@ -1,19 +1,27 @@
-// Sticky notes with a tag, built from plain Excalidraw elements (nothing here needs a newer Excalidraw).
+// Sticky notes with tags, built from plain Excalidraw elements (nothing here needs a newer Excalidraw).
 //
 // A sticky is a square rectangle with a fill colour, marked by customData { kind: 'sticky' }. Its text is Excalidraw's
 // own bound text, so it wraps, and in stock Excalidraw the sticky is just a rectangle with text.
-// A tag is a small rounded rectangle with bound text, marked by customData { kind: 'sticky-tag', for: <sticky id> }.
-// It sits across the sticky's top edge and shares one group with the sticky, so the two move together.
-// A sticky with no tag is not in a group, so a single double-click edits its text.
+// A tag is a small rounded rectangle with bound text, marked by customData { kind: 'sticky-tag' }. A sticky can have
+// several. They sit inside the sticky at the bottom right, in rows that fill upwards, and share one group with the sticky,
+// so they move together. The link between a sticky and its tags is that group: the innermost group id of the sticky is the
+// innermost group id of each of its tags. (A copy made by Excalidraw gets new group ids, so a copy keeps working.)
+// A sticky with no tags is not in that group, so a single double-click edits its text.
 //
 // This file only works out which elements to add, change or delete. It touches no page, so it also runs in Node.
 // The page passes in `convert` (Excalidraw's convertToExcalidrawElements), which sizes the text.
 (function (root) {
   var SIZE = 180;
-  var TAG_MAX = 40;
-  var TAG_OFFSET_X = 8;
-  var TAG_OVERLAP = 14; // how far the tag reaches above the sticky's top edge
-  var STAGGER = 24;
+  var STEP = SIZE + 16; // distance from one sticky to the next in a row
+  var VIEW_MARGIN = 16;
+  var TAG_MAX = 20; // characters in one tag
+  var TAGS_MAX = 4;
+  var TAG_INSET = 8; // gap between the tags and the sticky's edges
+  var TAG_GAP = 4;
+  var TAG_PAD_X = 8;
+  var TAG_PAD_Y = 3;
+  var TAG_FONT_SIZE = 14;
+  var HELVETICA = 2; // the sample board's font; the tag is metadata, so it differs from the sticky's own text
 
   // Excalidraw's own palette (the light shades of its yellow, green, blue and red).
   var COLOURS = [
@@ -30,10 +38,23 @@
   function boundText(elements, container) {
     return elements.filter(function (e) { return live(e) && e.type === 'text' && e.containerId === container.id; })[0] || null;
   }
+  function innermost(e) { return e.groupIds.length ? e.groupIds[0] : null; }
 
-  // Short text for a tag: one line, trimmed, at most TAG_MAX characters.
+  // One tag: one line, trimmed, at most TAG_MAX characters.
   function cleanTag(text) {
     return String(text || '').replace(/\s+/g, ' ').trim().slice(0, TAG_MAX);
+  }
+
+  // What the user types in the tag box: tags separated by commas. Empty and repeated ones (ignoring case) go, and so do
+  // all after the TAGS_MAX-th.
+  function tagList(text) {
+    var seen = {};
+    return String(text || '').split(',').map(cleanTag).filter(function (t) {
+      var key = t.toLowerCase();
+      if (!t || seen[key]) return false;
+      seen[key] = true;
+      return true;
+    }).slice(0, TAGS_MAX);
   }
 
   function colourNamed(name) {
@@ -42,19 +63,22 @@
     return found;
   }
 
-  // The first spot at or after (x, y) where no live sticky starts, so new stickies do not hide each other.
-  function freeSpot(elements, x, y) {
+  // The first spot at or after (x, y) where no live sticky starts. It moves right, beside the stickies already there. With
+  // `view` ({ left, right } in board coordinates) a row that would pass the right edge starts again at the left, one row down.
+  function freeSpot(elements, x, y, view) {
     var taken = elements.filter(function (e) { return live(e) && isSticky(e); });
+    var wraps = view && view.right - view.left >= SIZE + 2 * VIEW_MARGIN;
     var spot = { x: Math.round(x), y: Math.round(y) };
-    while (taken.some(function (e) { return e.x === spot.x && e.y === spot.y; })) {
-      spot = { x: spot.x + STAGGER, y: spot.y + STAGGER };
+    for (var tries = 0; tries < 1000 && taken.some(function (e) { return e.x === spot.x && e.y === spot.y; }); tries++) {
+      spot = { x: spot.x + STEP, y: spot.y };
+      if (wraps && spot.x + SIZE > view.right) spot = { x: Math.round(view.left + VIEW_MARGIN), y: spot.y + STEP };
     }
     return spot;
   }
 
   // The skeleton of one sticky, centred on (cx, cy). Excalidraw adds the text when the user types into it.
-  function stickySkeleton(elements, cx, cy, colourName) {
-    var spot = freeSpot(elements, cx - SIZE / 2, cy - SIZE / 2);
+  function stickySkeleton(elements, cx, cy, colourName, view) {
+    var spot = freeSpot(elements, cx - SIZE / 2, cy - SIZE / 2, view);
     return {
       type: 'rectangle', x: spot.x, y: spot.y, width: SIZE, height: SIZE,
       backgroundColor: colourNamed(colourName).fill, strokeColor: 'transparent', fillStyle: 'solid',
@@ -62,32 +86,40 @@
     };
   }
 
-  // The sticky that any selected piece belongs to (the sticky, its text, its tag or the tag's text), else null.
+  // The sticky that a selected element belongs to: the sticky, its text, one of its tags or a tag's text.
+  function ownerOf(elements, byId, e) {
+    if (e.type === 'text' && e.containerId && byId[e.containerId]) e = byId[e.containerId];
+    if (isSticky(e)) return e;
+    if (!isTag(e) || !innermost(e)) return null;
+    return elements.filter(function (s) { return live(s) && isSticky(s) && innermost(s) === innermost(e); })[0] || null;
+  }
+
+  // The sticky the selection is made of, or null: the selection must hold pieces of one sticky and nothing else.
   function stickyFor(elements, selectedIds) {
     var byId = {};
     elements.forEach(function (e) { byId[e.id] = e; });
-    for (var i = 0; i < elements.length; i++) {
-      var e = elements[i];
-      if (!live(e) || !selectedIds[e.id]) continue;
-      if (isSticky(e)) return e;
-      if (isTag(e) && byId[e.customData.for] && live(byId[e.customData.for])) return byId[e.customData.for];
-      if (e.type === 'text' && e.containerId && byId[e.containerId]) {
-        var box = byId[e.containerId];
-        if (isSticky(box)) return box;
-        if (isTag(box) && byId[box.customData.for] && live(byId[box.customData.for])) return byId[box.customData.for];
-      }
+    var found = null;
+    var ids = Object.keys(selectedIds).filter(function (id) { return selectedIds[id] && byId[id] && live(byId[id]); });
+    for (var i = 0; i < ids.length; i++) {
+      var owner = ownerOf(elements, byId, byId[ids[i]]);
+      if (!owner || (found && found !== owner)) return null;
+      found = owner;
     }
-    return null;
+    return found;
   }
 
-  function tagPartsOf(elements, sticky) {
-    var pill = elements.filter(function (e) { return live(e) && isTag(e) && e.customData.for === sticky.id; })[0] || null;
-    return { pill: pill, text: pill ? boundText(elements, pill) : null };
+  // The live tags of a sticky (rectangles, in the order they were made).
+  function pillsOf(elements, sticky) {
+    var group = innermost(sticky);
+    if (!group) return [];
+    return elements.filter(function (e) { return live(e) && isTag(e) && innermost(e) === group; });
   }
 
-  function tagOf(elements, sticky) {
-    var parts = tagPartsOf(elements, sticky);
-    return parts.text ? parts.text.text : '';
+  function tagsOf(elements, sticky) {
+    return pillsOf(elements, sticky).map(function (pill) {
+      var text = boundText(elements, pill);
+      return text ? text.text : '';
+    });
   }
 
   // Excalidraw reads a changed version as a change, so every edit bumps it.
@@ -101,58 +133,100 @@
     return next;
   }
 
-  function withoutGroup(e, groupId) {
-    return touched(e, { groupIds: e.groupIds.filter(function (g) { return g !== groupId; }) });
-  }
+  // Place sized tags inside the sticky: rows from the bottom up, each row against the right edge, a tag that no longer fits
+  // starting the next row up. `parts` is [{ rect, text }] and the result has the same shape and order, moved and resized.
+  function layoutTags(sticky, parts) {
+    var room = SIZE - 2 * TAG_INSET;
+    var boxes = parts.map(function (p) {
+      return { part: p, w: Math.ceil(p.text.width + 2 * TAG_PAD_X), h: Math.ceil(p.text.height + 2 * TAG_PAD_Y) };
+    });
+    var rows = [];
+    var row = [];
+    var used = 0;
+    boxes.forEach(function (b) {
+      if (row.length && used + TAG_GAP + b.w > room) { rows.push(row); row = []; used = 0; }
+      used += (row.length ? TAG_GAP : 0) + b.w;
+      row.push(b);
+    });
+    if (row.length) rows.push(row);
 
-  function withGroup(e, groupId) {
-    return e.groupIds.indexOf(groupId) >= 0 ? e : touched(e, { groupIds: e.groupIds.concat([groupId]) });
-  }
-
-  // Set, change or remove (empty text) the tag of `sticky`. Returns { elements, groupId }; groupId is null when
-  // the sticky has no tag afterwards. Never edits an element in place: changed ones are copies with a new version.
-  function setTag(elements, sticky, text, convert, newId) {
-    var tag = cleanTag(text);
-    var old = tagPartsOf(elements, sticky);
-    var stickyText = boundText(elements, sticky);
-    var groupId = old.pill ? old.pill.groupIds[old.pill.groupIds.length - 1] : null;
-    var drop = {};
-    if (old.pill) drop[old.pill.id] = true;
-    if (old.text) drop[old.text.id] = true;
-
-    if (!tag) {
-      if (!groupId) return { elements: elements, groupId: null };
+    var right = sticky.x + SIZE - TAG_INSET;
+    var top = sticky.y + SIZE - TAG_INSET;
+    rows.forEach(function (r) {
+      var rowH = Math.max.apply(null, r.map(function (b) { return b.h; }));
+      var rowW = r.reduce(function (sum, b) { return sum + b.w; }, 0) + TAG_GAP * (r.length - 1);
+      var x = right - rowW;
+      top -= rowH;
+      r.forEach(function (b) {
+        b.x = x; b.y = top; b.h = rowH;
+        x += b.w + TAG_GAP;
+      });
+      top -= TAG_GAP;
+    });
+    return boxes.map(function (b) {
+      var t = b.part.text;
       return {
-        elements: elements.map(function (e) {
-          if (drop[e.id]) return touched(e, { isDeleted: true });
-          if (e.id === sticky.id || (stickyText && e.id === stickyText.id)) return withoutGroup(e, groupId);
-          return e;
-        }),
-        groupId: null,
+        rect: touched(b.part.rect, { x: b.x, y: b.y, width: b.w, height: b.h }),
+        text: touched(t, { x: b.x + (b.w - t.width) / 2, y: b.y + (b.h - t.height) / 2 }),
       };
+    });
+  }
+
+  function tagSkeleton(sticky, text) {
+    return {
+      type: 'rectangle', x: sticky.x, y: sticky.y,
+      backgroundColor: '#ffffff', strokeColor: '#868e96', fillStyle: 'solid', strokeWidth: 1, roughness: 0,
+      roundness: { type: 3 }, customData: { kind: 'sticky-tag' },
+      label: { text: text, fontSize: TAG_FONT_SIZE, fontFamily: HELVETICA, strokeColor: '#1e1e1e' },
+    };
+  }
+
+  // Set the tags of `sticky` to `tags` (an array of cleaned strings; empty removes them all). Returns { elements, groupId }:
+  // groupId is null when the sticky has no tags afterwards. Never edits an element in place: changed ones are copies with a
+  // new version. Every change rebuilds all the tags, so they are always laid out as one set.
+  function setTags(elements, sticky, tags, convert, newId) {
+    var olds = pillsOf(elements, sticky);
+    var oldTags = tagsOf(elements, sticky);
+    var oldGroup = olds.length ? innermost(sticky) : null;
+    if (oldTags.length === tags.length && oldTags.every(function (t, i) { return t === tags[i]; })) {
+      return { elements: elements, groupId: oldGroup };
     }
 
-    if (old.text && old.text.text === tag) return { elements: elements, groupId: groupId };
-    groupId = groupId || newId();
-    var skeleton = {
-      type: 'rectangle', x: sticky.x + TAG_OFFSET_X, y: sticky.y - TAG_OVERLAP,
-      backgroundColor: '#ffffff', strokeColor: '#1e1e1e', fillStyle: 'solid', strokeWidth: 1, roughness: 0,
-      roundness: { type: 3 }, customData: { kind: 'sticky-tag', for: sticky.id },
-      label: { text: tag, fontSize: 14, strokeColor: '#1e1e1e' },
-    };
-    var made = convert([skeleton]).map(function (e) { return touched(e, { groupIds: [groupId] }); });
+    var drop = {};
+    olds.forEach(function (pill) {
+      drop[pill.id] = true;
+      var text = boundText(elements, pill);
+      if (text) drop[text.id] = true;
+    });
+    var stickyText = boundText(elements, sticky);
+    var outer = oldGroup ? sticky.groupIds.slice(1) : sticky.groupIds;
+    var groupId = tags.length ? (oldGroup || newId()) : null;
+    var groupIds = groupId ? [groupId].concat(outer) : outer;
+
     var kept = elements.map(function (e) {
       if (drop[e.id]) return touched(e, { isDeleted: true });
-      if (e.id === sticky.id || (stickyText && e.id === stickyText.id)) return withGroup(e, groupId);
+      if (e.id === sticky.id || (stickyText && e.id === stickyText.id)) {
+        return e.groupIds.join() === groupIds.join() ? e : touched(e, { groupIds: groupIds });
+      }
       return e;
     });
-    return { elements: kept.concat(made), groupId: groupId };
+    if (!tags.length) return { elements: kept, groupId: null };
+
+    var made = convert(tags.map(function (t) { return tagSkeleton(sticky, t); }));
+    var parts = made.filter(function (e) { return e.type === 'rectangle'; }).map(function (rect) {
+      return { rect: rect, text: made.filter(function (e) { return e.containerId === rect.id; })[0] };
+    });
+    var placed = [];
+    layoutTags(sticky, parts).forEach(function (p) {
+      placed.push(touched(p.rect, { groupIds: groupIds }), touched(p.text, { groupIds: groupIds }));
+    });
+    return { elements: kept.concat(placed), groupId: groupId };
   }
 
   var api = {
-    SIZE: SIZE, TAG_MAX: TAG_MAX, COLOURS: COLOURS,
-    isSticky: isSticky, isTag: isTag, cleanTag: cleanTag, freeSpot: freeSpot,
-    stickySkeleton: stickySkeleton, stickyFor: stickyFor, tagOf: tagOf, setTag: setTag,
+    SIZE: SIZE, TAG_MAX: TAG_MAX, TAGS_MAX: TAGS_MAX, COLOURS: COLOURS,
+    isSticky: isSticky, isTag: isTag, tagList: tagList, freeSpot: freeSpot,
+    stickySkeleton: stickySkeleton, stickyFor: stickyFor, tagsOf: tagsOf, setTags: setTags,
   };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.Stickies = api;

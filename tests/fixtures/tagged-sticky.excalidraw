@@ -4,7 +4,7 @@
  "source": "excalidraw-local-viewer",
  "elements": [
   {
-   "id": "8wYlg2Zi0YMOs8RRee8Qj",
+   "id": "1ES9vWlTcetMv_unjCSmr",
    "type": "rectangle",
    "x": 350,
    "y": 60,
@@ -12,28 +12,28 @@
    "height": 180,
    "angle": 0,
    "strokeColor": "transparent",
-   "backgroundColor": "#b2f2bb",
+   "backgroundColor": "#ffec99",
    "fillStyle": "solid",
    "strokeWidth": 1,
    "strokeStyle": "solid",
    "roughness": 0,
    "opacity": 100,
    "groupIds": [
-    "8w9dajutzemw9eg5p2"
+    "4kujtp7c4umwr1pcuq"
    ],
    "frameId": null,
    "roundness": null,
-   "seed": 552990307,
+   "seed": 1559976827,
    "version": 3,
-   "versionNonce": 1124260845,
+   "versionNonce": 912995290,
    "isDeleted": false,
    "boundElements": [
     {
      "type": "text",
-     "id": "Bu7nGHvElCFO1j35YFXIH"
+     "id": "9hp4kMGzgUs-K7652n4f1"
     }
    ],
-   "updated": 1794237108952,
+   "updated": 1795304094290,
    "link": null,
    "locked": false,
    "customData": {
@@ -41,12 +41,12 @@
    }
   },
   {
-   "id": "Bu7nGHvElCFO1j35YFXIH",
+   "id": "9hp4kMGzgUs-K7652n4f1",
    "type": "text",
-   "x": 356.61006927490234,
-   "y": 75,
-   "width": 166.7798614501953,
-   "height": 150,
+   "x": 363.44007110595703,
+   "y": 125,
+   "width": 153.11985778808594,
+   "height": 50,
    "angle": 0,
    "strokeColor": "#1e1e1e",
    "backgroundColor": "transparent",
@@ -56,37 +56,37 @@
    "roughness": 1,
    "opacity": 100,
    "groupIds": [
-    "8w9dajutzemw9eg5p2"
+    "4kujtp7c4umwr1pcuq"
    ],
    "frameId": null,
    "roundness": null,
-   "seed": 1884238339,
+   "seed": 899167259,
    "version": 4,
-   "versionNonce": 1196684445,
+   "versionNonce": 49672894,
    "isDeleted": false,
    "boundElements": null,
-   "updated": 1794237108952,
+   "updated": 1795304094290,
    "link": null,
    "locked": false,
-   "text": "Check the wrap: \nthis is a long \nline of sticky \ntext that must \nwrap inside the \nsquare",
+   "text": "Customer pays \nthe invoice",
    "fontSize": 20,
    "fontFamily": 1,
    "textAlign": "center",
    "verticalAlign": "middle",
-   "baseline": 143,
-   "containerId": "8wYlg2Zi0YMOs8RRee8Qj",
-   "originalText": "Check the wrap: this is a long line of sticky text that must wrap inside the square",
+   "baseline": 43,
+   "containerId": "1ES9vWlTcetMv_unjCSmr",
+   "originalText": "Customer pays the invoice",
    "lineHeight": 1.25
   },
   {
-   "id": "6qCY2F37pt7f7lvDXjvWD",
+   "id": "k8S186Mt4kncGvPmCbAhH",
    "type": "rectangle",
-   "x": 358,
-   "y": 46,
-   "width": 50,
-   "height": 28,
+   "x": 393,
+   "y": 209,
+   "width": 59,
+   "height": 23,
    "angle": 0,
-   "strokeColor": "#1e1e1e",
+   "strokeColor": "#868e96",
    "backgroundColor": "#ffffff",
    "fillStyle": "solid",
    "strokeWidth": 1,
@@ -94,37 +94,36 @@
    "roughness": 0,
    "opacity": 100,
    "groupIds": [
-    "8w9dajutzemw9eg5p2"
+    "4kujtp7c4umwr1pcuq"
    ],
    "frameId": null,
    "roundness": {
     "type": 3
    },
-   "seed": 457883395,
-   "version": 4,
-   "versionNonce": 457068932,
+   "seed": 1045250875,
+   "version": 5,
+   "versionNonce": 1374343270,
    "isDeleted": false,
    "boundElements": [
     {
      "type": "text",
-     "id": "T-uLjsVZTr8n6ONzk2ZHN"
+     "id": "8PTMpz4QE97RRz_6V0_0F"
     }
    ],
-   "updated": 1794237113672,
+   "updated": 1795304094291,
    "link": null,
    "locked": false,
    "customData": {
-    "kind": "sticky-tag",
-    "for": "8wYlg2Zi0YMOs8RRee8Qj"
+    "kind": "sticky-tag"
    }
   },
   {
-   "id": "T-uLjsVZTr8n6ONzk2ZHN",
+   "id": "8PTMpz4QE97RRz_6V0_0F",
    "type": "text",
-   "x": 363.3440246582031,
-   "y": 51.25,
-   "width": 39.31195068359375,
-   "height": 17.5,
+   "x": 401.48974609375,
+   "y": 212.45,
+   "width": 42.0205078125,
+   "height": 16.099999999999998,
    "angle": 0,
    "strokeColor": "#1e1e1e",
    "backgroundColor": "transparent",
@@ -134,27 +133,104 @@
    "roughness": 1,
    "opacity": 100,
    "groupIds": [
-    "8w9dajutzemw9eg5p2"
+    "4kujtp7c4umwr1pcuq"
    ],
    "frameId": null,
    "roundness": null,
-   "seed": 587654829,
-   "version": 3,
-   "versionNonce": 510685806,
+   "seed": 735519707,
+   "version": 4,
+   "versionNonce": 434115485,
    "isDeleted": false,
    "boundElements": null,
-   "updated": 1794237113672,
+   "updated": 1795304094291,
    "link": null,
    "locked": false,
-   "text": "Later",
+   "text": "Urgent",
    "fontSize": 14,
-   "fontFamily": 1,
+   "fontFamily": 2,
    "textAlign": "center",
    "verticalAlign": "middle",
-   "baseline": 12,
-   "containerId": "6qCY2F37pt7f7lvDXjvWD",
-   "originalText": "Later",
-   "lineHeight": 1.25
+   "baseline": 13,
+   "containerId": "k8S186Mt4kncGvPmCbAhH",
+   "originalText": "Urgent",
+   "lineHeight": 1.15
+  },
+  {
+   "id": "4ebFOjxUo5fW-B5yH2k3Y",
+   "type": "rectangle",
+   "x": 456,
+   "y": 209,
+   "width": 66,
+   "height": 23,
+   "angle": 0,
+   "strokeColor": "#868e96",
+   "backgroundColor": "#ffffff",
+   "fillStyle": "solid",
+   "strokeWidth": 1,
+   "strokeStyle": "solid",
+   "roughness": 0,
+   "opacity": 100,
+   "groupIds": [
+    "4kujtp7c4umwr1pcuq"
+   ],
+   "frameId": null,
+   "roundness": {
+    "type": 3
+   },
+   "seed": 176677365,
+   "version": 5,
+   "versionNonce": 1489553791,
+   "isDeleted": false,
+   "boundElements": [
+    {
+     "type": "text",
+     "id": "7cGxRfIaYz3b6F5JRnp1e"
+    }
+   ],
+   "updated": 1795304094291,
+   "link": null,
+   "locked": false,
+   "customData": {
+    "kind": "sticky-tag"
+   }
+  },
+  {
+   "id": "7cGxRfIaYz3b6F5JRnp1e",
+   "type": "text",
+   "x": 464.0966796875,
+   "y": 212.45,
+   "width": 49.806640625,
+   "height": 16.099999999999998,
+   "angle": 0,
+   "strokeColor": "#1e1e1e",
+   "backgroundColor": "transparent",
+   "fillStyle": "solid",
+   "strokeWidth": 2,
+   "strokeStyle": "solid",
+   "roughness": 1,
+   "opacity": 100,
+   "groupIds": [
+    "4kujtp7c4umwr1pcuq"
+   ],
+   "frameId": null,
+   "roundness": null,
+   "seed": 1012803867,
+   "version": 4,
+   "versionNonce": 1705545262,
+   "isDeleted": false,
+   "boundElements": null,
+   "updated": 1795304094291,
+   "link": null,
+   "locked": false,
+   "text": "Finance",
+   "fontSize": 14,
+   "fontFamily": 2,
+   "textAlign": "center",
+   "verticalAlign": "middle",
+   "baseline": 13,
+   "containerId": "4ebFOjxUo5fW-B5yH2k3Y",
+   "originalText": "Finance",
+   "lineHeight": 1.15
   }
  ],
  "appState": {

@@ -35,19 +35,20 @@ and text.
 
 | To do this | Do this |
 |---|---|
-| Add a sticky | Click a colour (yellow, green, blue or pink). A square sticky appears at the centre of the view and its text box opens: type, then press Escape. A second sticky at the same spot is shifted a little so it does not hide the first |
-| Tag a sticky | Select the sticky, type the tag in the **Tag** box (up to 40 characters, one line), press Enter. The tag shows as a small label across the sticky's top edge |
-| Change a tag | Select the sticky, change the text in the Tag box, press Enter |
-| Remove a tag | Select the sticky and press **Clear**, or empty the Tag box and press Enter |
-| Edit the text of a tagged sticky | Press **Edit text** in the bar. (Double-clicking works too, but a tagged sticky is in a group, so it takes two double-clicks) |
+| Add a sticky | Click a coloured **+** (yellow, green, blue or pink). A square sticky appears at the centre of the view and its text box opens: type, then press Escape. The next sticky goes beside it, and when a row reaches the edge of the view the next row starts below |
+| Tag a sticky | Select the sticky (it stays selected when you press Escape after typing its text; if you left its text empty, click it), type its tags in the box, separated by commas (`Urgent, Finance`), press Enter. Up to 4 tags of up to 20 characters each. They sit inside the sticky at the bottom right, in rows that fill upwards |
+| Change or remove tags | Select the sticky, edit the list in the box, press Enter. Empty the box to remove them all. Escape leaves the box without changing anything |
+| Edit the text of a tagged sticky | Select it and press Enter. (A double-click works too, but a tagged sticky is in a group, so it takes two) |
 
-A tagged sticky and its tag are one group, so they move together. Selecting the tag or the sticky's text
-also lets you use the Tag box. Undo (Ctrl or Cmd + Z) works for adding and tagging.
+The box always edits the sticky it was opened for, even if you click another sticky before you press Enter. A tagged sticky
+and its tags are one group, so they move together; a copy (Ctrl or Cmd + D) gets its own tags. Undo (Ctrl or Cmd + Z) works for
+adding and tagging. A long sticky text can run under the tags: make the text shorter, or the tags fewer.
 
 Boards stay plain Excalidraw JSON, and the files saved are the same as any other board. A sticky is a rectangle with
 bound text and a tag is a small rounded rectangle with bound text; both carry a `customData` marker (`kind: "sticky"` or
-`kind: "sticky-tag"`) that Excalidraw keeps and ignores. Excalidraw 0.17.6 without this bar loads them as plain
-rectangles with text; you just lose the bar. The rules live in `viewer/stickies.js`, the bar in `viewer/stickies-ui.js`.
+`kind: "sticky-tag"`) that Excalidraw keeps and ignores. A tag belongs to the sticky it shares a group with. Excalidraw
+0.17.6 without this bar loads them as plain rectangles with text; you just lose the bar. The rules live in
+`viewer/stickies.js`, the bar in `viewer/stickies-ui.js`.
 
 ## Saving and exporting
 

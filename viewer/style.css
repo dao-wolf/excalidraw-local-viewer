@@ -1,26 +1,24 @@
 :root {
   --stickies-bg: #ffffff;
   --stickies-ink: #1e1e1e;
-  --stickies-muted: #6c6c6c;
   --stickies-line: #d0d0d0;
   --stickies-radius: 8px;
   --stickies-gap: 8px;
-  --stickies-swatch: 24px;
+  --stickies-swatch: 28px;
+  --stickies-lift: 56px; /* keeps the bar clear of Excalidraw's own row of controls along the bottom */
 }
 
 html, body, #app { margin: 0; height: 100%; }
 
-/* The sticky toolbar floats at the bottom centre of the board, above Excalidraw's own controls. */
+/* The sticky bar floats at the bottom centre of the board, above Excalidraw's own controls. */
 .stickies {
   position: fixed;
   left: 50%;
-  bottom: var(--stickies-gap);
+  bottom: var(--stickies-lift);
   transform: translateX(-50%);
   z-index: 10;
   display: flex;
   align-items: center;
-  flex-wrap: wrap;
-  justify-content: center;
   gap: var(--stickies-gap);
   padding: var(--stickies-gap);
   max-width: calc(100% - 2 * var(--stickies-gap));
@@ -31,34 +29,29 @@ html, body, #app { margin: 0; height: 100%; }
   border-radius: var(--stickies-radius);
   font: 13px/1.2 system-ui, sans-serif;
 }
-.stickies-label { color: var(--stickies-muted); }
 .sticky-colours { display: flex; gap: var(--stickies-gap); }
 .sticky-swatch {
   width: var(--stickies-swatch);
   height: var(--stickies-swatch);
   padding: 0;
+  color: var(--stickies-ink);
+  font: inherit;
+  font-size: 18px;
+  line-height: 1;
   border: 1px solid var(--stickies-line);
   border-radius: 4px;
   cursor: pointer;
 }
-.sticky-swatch:hover, .sticky-swatch:focus-visible { outline: 2px solid var(--stickies-ink); outline-offset: 1px; }
-.sticky-tag {
-  width: 12em;
+.sticky-tags {
+  width: 15em;
   min-width: 0;
-  padding: 4px 6px;
+  height: var(--stickies-swatch);
+  padding: 0 6px;
+  box-sizing: border-box;
   font: inherit;
   color: inherit;
   border: 1px solid var(--stickies-line);
   border-radius: 4px;
 }
-.sticky-clear {
-  padding: 4px 8px;
-  white-space: nowrap;
-  font: inherit;
-  color: inherit;
-  background: none;
-  border: 1px solid var(--stickies-line);
-  border-radius: 4px;
-  cursor: pointer;
-}
-.sticky-clear:disabled { cursor: default; color: var(--stickies-muted); }
+.sticky-tags:disabled { opacity: 0.5; }
+.sticky-swatch:focus-visible, .sticky-tags:focus-visible { outline: 2px solid var(--stickies-ink); outline-offset: 1px; }

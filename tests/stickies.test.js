@@ -1,5 +1,5 @@
 // Tests for viewer/stickies.js, run by tests/test_stickies.py with `node --test`. No browser: Excalidraw's own element
-// builder is replaced by `convert` below, which returns the same shape (a rectangle plus its bound text).
+// builder is replaced by `convert` below, which returns the same shape (a rectangle plus its bound text, with the text sized).
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
@@ -20,22 +20,26 @@ function convert(skeletons) {
     delete rect.label;
     out.push(rect);
     if (label) {
-      out.push({ id: textId, type: 'text', x: s.x + 5, y: s.y + 5, text: label.text, originalText: label.text, containerId: rectId, version: 1, isDeleted: false, groupIds: [], boundElements: null });
+      out.push({ id: textId, type: 'text', x: 0, y: 0, width: label.text.length * 8, height: 17.5, text: label.text, originalText: label.text, containerId: rectId, version: 1, isDeleted: false, groupIds: [], boundElements: null });
     }
   });
   return out;
 }
 
 // A sticky as Excalidraw leaves it once the user has typed into it: the rectangle and its bound text.
-function stickyWithText(text) {
-  const rect = convert([S.stickySkeleton([], 300, 300, 'yellow')])[0];
+function stickyWithText(text, x, y) {
+  const rect = convert([S.stickySkeleton([], (x || 300) + S.SIZE / 2, (y || 300) + S.SIZE / 2, 'yellow')])[0];
   const body = { id: 'body-' + rect.id, type: 'text', text: text, originalText: text, containerId: rect.id, version: 1, isDeleted: false, groupIds: [], boundElements: null };
   rect.boundElements = [{ type: 'text', id: body.id }];
   return [rect, body];
 }
 
 const live = (els) => els.filter((e) => !e.isDeleted);
-const tagLabels = (els) => live(els).filter((e) => e.type === 'text' && e.containerId && S.isTag(els.find((b) => b.id === e.containerId))).map((e) => e.text);
+const byId = (els, id) => els.find((e) => e.id === id);
+const pillsOf = (els) => live(els).filter(S.isTag);
+const textOf = (els, pill) => els.find((e) => e.type === 'text' && e.containerId === pill.id && !e.isDeleted);
+const tagLabels = (els) => pillsOf(els).map((p) => textOf(els, p).text);
+const tag = (els, sticky, tags) => S.setTags(els, sticky, tags, convert, newId);
 
 test('a sticky is a roughly square, filled rectangle centred where asked', () => {
   const sk = S.stickySkeleton([], 500, 400, 'yellow');
@@ -55,107 +59,177 @@ test('there are four colours and each makes a different fill', () => {
   assert.throws(() => S.stickySkeleton([], 0, 0, 'purple'), /Unknown sticky colour/);
 });
 
-test('a second sticky at the same spot is shifted so it does not hide the first', () => {
+test('a sticky at an occupied spot moves right, beside the first, not on top of it', () => {
   const first = convert([S.stickySkeleton([], 500, 400, 'green')]);
   const second = S.stickySkeleton(first, 500, 400, 'green');
-  assert.notEqual(second.x, first[0].x);
-  assert.notEqual(second.y, first[0].y);
+  assert.equal(second.y, first[0].y);
+  assert.ok(second.x >= first[0].x + S.SIZE, 'the two stickies do not overlap');
   first[0].isDeleted = true;
-  assert.equal(S.stickySkeleton(first, 500, 400, 'green').x, 410, 'a deleted sticky does not take the spot');
+  assert.equal(S.stickySkeleton(first, 500, 400, 'green').x, first[0].x, 'a deleted sticky does not take the spot');
 });
 
-test('a tag is added, grouped with the sticky and shown as text', () => {
+test('when the row reaches the edge of the view the next sticky starts a new row', () => {
+  const view = { left: 0, right: 700 };
+  let els = [];
+  const spots = [];
+  for (let i = 0; i < 5; i++) {
+    const sk = S.stickySkeleton(els, 350, 100, 'blue', view);
+    spots.push([sk.x, sk.y]);
+    els = els.concat(convert([sk]));
+  }
+  spots.forEach(([x]) => assert.ok(x >= view.left && x + S.SIZE <= view.right, 'inside the view: ' + x));
+  assert.equal(new Set(spots.map((s) => s.join(','))).size, 5, 'no two share a spot');
+  assert.ok(spots[4][1] > spots[0][1], 'the later ones are on a lower row');
+});
+
+test('tags are typed as a comma-separated list: trimmed, one line each, no repeats, a few at most', () => {
+  assert.deepEqual(S.tagList(' Urgent , later,,  '), ['Urgent', 'later']);
+  assert.deepEqual(S.tagList('Urgent, urgent, URGENT'), ['Urgent']);
+  assert.deepEqual(S.tagList('a\n b\tc'), ['a b c']);
+  assert.equal(S.tagList('x'.repeat(100))[0].length, S.TAG_MAX);
+  assert.equal(S.tagList('1,2,3,4,5,6,7').length, S.TAGS_MAX);
+  assert.deepEqual(S.tagList(''), []);
+  assert.deepEqual(S.tagList(null), []);
+});
+
+test('tags are added, grouped with the sticky and shown as text', () => {
   const els = stickyWithText('Pay the invoice');
-  const r = S.setTag(els, els[0], '  Urgent ', convert, newId);
+  const r = tag(els, els[0], ['Urgent', 'Finance']);
   assert.ok(r.groupId);
-  assert.deepEqual(tagLabels(r.elements), ['Urgent']);
-  assert.equal(S.tagOf(r.elements, els[0]), 'Urgent');
+  assert.deepEqual(tagLabels(r.elements), ['Urgent', 'Finance']);
+  assert.deepEqual(S.tagsOf(r.elements, byId(r.elements, els[0].id)), ['Urgent', 'Finance']);
   const members = live(r.elements).filter((e) => e.groupIds.includes(r.groupId));
-  assert.equal(members.length, 4, 'sticky, its text, the tag and its text share one group');
-  const pill = live(r.elements).find(S.isTag);
-  assert.equal(pill.customData.for, els[0].id);
-  assert.ok(pill.y < els[0].y && pill.y + pill.height > els[0].y, 'the tag crosses the sticky top edge');
+  assert.equal(members.length, 6, 'sticky, its text, and each tag with its text share one group');
 });
 
-test('a tag is changed: the old one is deleted, the new one takes its place in the same group', () => {
+test('tags sit inside the sticky at the bottom right, in rows that stay inside it', () => {
   const els = stickyWithText('x');
-  const one = S.setTag(els, els[0], 'Urgent', convert, newId);
-  const two = S.setTag(one.elements, one.elements[0], 'Later', convert, newId);
+  const sticky = els[0];
+  const one = tag(els, sticky, ['Urgent']).elements;
+  const pill = pillsOf(one)[0];
+  assert.equal(Math.round(pill.x + pill.width), sticky.x + S.SIZE - 8, 'right edge inset 8 from the sticky right edge');
+  assert.equal(Math.round(pill.y + pill.height), sticky.y + S.SIZE - 8, 'bottom edge inset 8 from the sticky bottom edge');
+  const four = tag(els, sticky, ['Alpha', 'Bravo', 'Charlie', 'Delta']).elements;
+  const boxes = pillsOf(four);
+  assert.equal(boxes.length, 4);
+  boxes.forEach((p) => {
+    assert.ok(p.x >= sticky.x && p.x + p.width <= sticky.x + S.SIZE, 'inside horizontally');
+    assert.ok(p.y >= sticky.y && p.y + p.height <= sticky.y + S.SIZE, 'inside vertically');
+    const t = textOf(four, p);
+    assert.ok(t.x >= p.x && t.x + t.width <= p.x + p.width && t.y >= p.y && t.y + t.height <= p.y + p.height, 'text inside its pill');
+  });
+  boxes.forEach((a, i) => boxes.forEach((b, j) => {
+    if (i < j) assert.ok(a.x + a.width <= b.x || b.x + b.width <= a.x || a.y + a.height <= b.y || b.y + b.height <= a.y, 'no two tags overlap');
+  }));
+  assert.ok(new Set(boxes.map((p) => p.y)).size >= 2, 'four wide tags need more than one row');
+});
+
+test('changing the tags deletes the old ones and keeps the same group', () => {
+  const els = stickyWithText('x');
+  const one = tag(els, els[0], ['Urgent', 'Finance']);
+  const two = tag(one.elements, one.elements[0], ['Later']);
   assert.equal(two.groupId, one.groupId);
   assert.deepEqual(tagLabels(two.elements), ['Later']);
-  assert.equal(live(two.elements).filter(S.isTag).length, 1);
-  assert.equal(two.elements.filter((e) => e.isDeleted).length, 2);
+  assert.equal(two.elements.filter((e) => e.isDeleted).length, 4, 'both old tags and their texts are deleted');
 });
 
-test('an empty tag removes it and ungroups the sticky', () => {
+test('no tags removes them all and takes the sticky out of the tag group', () => {
   const els = stickyWithText('x');
-  const one = S.setTag(els, els[0], 'Urgent', convert, newId);
-  const gone = S.setTag(one.elements, one.elements[0], '   ', convert, newId);
+  const one = tag(els, els[0], ['Urgent', 'Later']);
+  const gone = tag(one.elements, one.elements[0], []);
   assert.equal(gone.groupId, null);
-  assert.equal(S.tagOf(gone.elements, els[0]), '');
+  assert.deepEqual(S.tagsOf(gone.elements, byId(gone.elements, els[0].id)), []);
   live(gone.elements).forEach((e) => assert.deepEqual(e.groupIds, []));
   assert.equal(live(gone.elements).length, 2);
 });
 
-test('the same tag again, or no tag on an untagged sticky, changes nothing', () => {
+test('the same tags again, or none on an untagged sticky, change nothing', () => {
   const els = stickyWithText('x');
-  assert.equal(S.setTag(els, els[0], '', convert, newId).elements, els);
-  const one = S.setTag(els, els[0], 'Urgent', convert, newId);
-  assert.equal(S.setTag(one.elements, one.elements[0], 'Urgent', convert, newId).elements, one.elements);
+  assert.equal(tag(els, els[0], []).elements, els);
+  const one = tag(els, els[0], ['Urgent', 'Later']);
+  assert.equal(tag(one.elements, one.elements[0], ['Urgent', 'Later']).elements, one.elements);
 });
 
-test('tags are one short line', () => {
-  assert.equal(S.cleanTag('a\n  b\tc'), 'a b c');
-  assert.equal(S.cleanTag('x'.repeat(100)).length, S.TAG_MAX);
-  assert.equal(S.cleanTag(null), '');
-});
-
-test('setTag never edits the elements it was given', () => {
+test('tagging never edits the elements it was given', () => {
   const els = stickyWithText('x');
   const before = JSON.stringify(els);
-  const one = S.setTag(els, els[0], 'Urgent', convert, newId);
+  const one = tag(els, els[0], ['Urgent']);
   const afterOne = JSON.stringify(one.elements);
-  S.setTag(one.elements, one.elements[0], '', convert, newId);
+  tag(one.elements, one.elements[0], []);
   assert.equal(JSON.stringify(els), before);
   assert.equal(JSON.stringify(one.elements), afterOne);
 });
 
 test('each change bumps the version of the elements it touches', () => {
   const els = stickyWithText('x');
-  const r = S.setTag(els, els[0], 'Urgent', convert, newId);
+  const r = tag(els, els[0], ['Urgent']);
   assert.ok(r.elements[0].version > els[0].version);
   assert.ok(r.elements[1].version > els[1].version);
 });
 
-test('selecting any piece of a sticky finds the sticky', () => {
+test('a sticky already in a bigger group keeps it: the tag group sits inside it', () => {
   const els = stickyWithText('x');
-  const r = S.setTag(els, els[0], 'Urgent', convert, newId).elements;
-  const [sticky, body] = r;
-  const pill = r.find(S.isTag);
-  const pillText = r.find((e) => e.containerId === pill.id);
-  [sticky, body, pill, pillText].forEach((piece) => assert.equal(S.stickyFor(r, { [piece.id]: true }), sticky));
-  assert.equal(S.stickyFor(r, {}), null);
-  assert.equal(S.stickyFor([{ id: 'plain', type: 'rectangle', isDeleted: false, groupIds: [] }], { plain: true }), null);
+  els[0].groupIds = ['outer'];
+  els[1].groupIds = ['outer'];
+  const r = tag(els, els[0], ['Urgent']);
+  const sticky = byId(r.elements, els[0].id);
+  assert.deepEqual(sticky.groupIds, [r.groupId, 'outer']);
+  pillsOf(r.elements).forEach((p) => assert.deepEqual(p.groupIds, [r.groupId, 'outer']));
+  const gone = tag(r.elements, sticky, []);
+  assert.deepEqual(byId(gone.elements, els[0].id).groupIds, ['outer']);
 });
 
-// The reload case: a board file saved by the viewer (through Excalidraw's own save) with one tagged sticky.
+test('a copy of a tagged sticky has its own tags: the link is the group, not an id', () => {
+  const els = stickyWithText('x');
+  const r = tag(els, els[0], ['Urgent', 'Later']).elements;
+  // What Excalidraw does on duplicate: new ids everywhere, one new id for each group, customData copied as it was.
+  const copy = r.filter((e) => !e.isDeleted).map((e) => Object.assign({}, JSON.parse(JSON.stringify(e)), {
+    id: 'copy-' + e.id,
+    containerId: e.containerId ? 'copy-' + e.containerId : null,
+    boundElements: e.boundElements && e.boundElements.map((b) => ({ type: b.type, id: 'copy-' + b.id })),
+    groupIds: e.groupIds.map((g) => 'copy-' + g),
+  }));
+  const all = r.concat(copy);
+  const copySticky = copy.find(S.isSticky);
+  assert.deepEqual(S.tagsOf(all, copySticky), ['Urgent', 'Later']);
+  const changed = tag(all, copySticky, ['Other']);
+  assert.deepEqual(S.tagsOf(changed.elements, byId(changed.elements, els[0].id)), ['Urgent', 'Later'], 'the original keeps its tags');
+  assert.deepEqual(S.tagsOf(changed.elements, byId(changed.elements, copySticky.id)), ['Other']);
+});
+
+test('selecting only pieces of one sticky finds the sticky; anything else selected finds none', () => {
+  const els = stickyWithText('x');
+  const r = tag(els, els[0], ['Urgent']).elements;
+  const [sticky, body] = r;
+  const pill = pillsOf(r)[0];
+  const pillText = textOf(r, pill);
+  [sticky, body, pill, pillText].forEach((piece) => assert.equal(S.stickyFor(r, { [piece.id]: true }), sticky));
+  assert.equal(S.stickyFor(r, { [sticky.id]: true, [body.id]: true, [pill.id]: true, [pillText.id]: true }), sticky);
+  assert.equal(S.stickyFor(r, {}), null);
+  const plain = { id: 'plain', type: 'rectangle', isDeleted: false, groupIds: [] };
+  assert.equal(S.stickyFor(r.concat([plain]), { plain: true }), null);
+  assert.equal(S.stickyFor(r.concat([plain]), { [sticky.id]: true, plain: true }), null, 'a sticky plus another shape is not "a sticky"');
+  const other = stickyWithText('y', 700, 700);
+  assert.equal(S.stickyFor(r.concat(other), { [sticky.id]: true, [other[0].id]: true }), null, 'two stickies are not "a sticky"');
+});
+
+// The reload case: a board file saved by the viewer (through Excalidraw's own save) with one sticky and two tags.
 const fixture = JSON.parse(fs.readFileSync(path.join(__dirname, 'fixtures', 'tagged-sticky.excalidraw'), 'utf8'));
 
-test('a saved board brings the sticky and its tag back', () => {
+test('a saved board brings the sticky and its tags back', () => {
   const els = fixture.elements;
   const sticky = els.find(S.isSticky);
   assert.ok(sticky);
-  assert.equal(S.tagOf(els, sticky), 'Later');
+  assert.deepEqual(S.tagsOf(els, sticky), ['Urgent', 'Finance']);
   assert.equal(S.stickyFor(els, { [els.find(S.isTag).id]: true }), sticky);
 });
 
-test('a tag can be changed and removed on a reloaded board', () => {
+test('tags can be changed and removed on a reloaded board', () => {
   const els = fixture.elements;
   const sticky = els.find(S.isSticky);
-  const changed = S.setTag(els, sticky, 'Urgent', convert, newId);
-  assert.equal(S.tagOf(changed.elements, sticky), 'Urgent');
-  const removed = S.setTag(changed.elements, sticky, '', convert, newId);
-  assert.equal(S.tagOf(removed.elements, sticky), '');
+  const changed = tag(els, sticky, ['Later']);
+  assert.deepEqual(S.tagsOf(changed.elements, sticky), ['Later']);
+  assert.deepEqual(S.tagsOf(tag(changed.elements, sticky, []).elements, sticky), []);
 });
 
 test('the board stays plain Excalidraw JSON: stock element fields plus customData, nothing else', () => {
@@ -165,6 +239,7 @@ test('the board stays plain Excalidraw JSON: stock element fields plus customDat
     'baseline', 'containerId', 'originalText', 'lineHeight']);
   fixture.elements.forEach((e) => {
     Object.keys(e).forEach((k) => assert.ok(stock.has(k), 'unexpected field ' + k));
+    if (e.customData) assert.deepEqual(Object.keys(e.customData), ['kind']);
     if (e.customData) assert.ok(['sticky', 'sticky-tag'].includes(e.customData.kind));
   });
   assert.deepEqual(JSON.parse(JSON.stringify(fixture)), fixture);

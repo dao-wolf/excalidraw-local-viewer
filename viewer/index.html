@@ -15,12 +15,8 @@
 <body>
 <div id="app"></div>
 <div id="stickies" class="stickies" role="toolbar" aria-label="Sticky notes" data-sticky="none">
-  <span class="stickies-label">Sticky</span>
   <span id="sticky-colours" class="sticky-colours"></span>
-  <label class="stickies-label" for="sticky-tag">Tag</label>
-  <input id="sticky-tag" class="sticky-tag" type="text" autocomplete="off" disabled placeholder="Select a sticky to tag it">
-  <button id="sticky-tag-clear" class="sticky-clear" type="button" disabled>Clear</button>
-  <button id="sticky-edit" class="sticky-clear" type="button" disabled title="Edit the text of the selected sticky">Edit text</button>
+  <input id="sticky-tags" class="sticky-tags" type="text" autocomplete="off" aria-label="Tags of the selected sticky" disabled placeholder="Select a sticky to tag it">
 </div>
 <script src="stickies.js"></script>
 <script src="stickies-ui.js"></script>
