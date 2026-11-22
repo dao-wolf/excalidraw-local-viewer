@@ -82,12 +82,13 @@ test('when the row reaches the edge of the view the next sticky starts a new row
   assert.ok(spots[4][1] > spots[0][1], 'the later ones are on a lower row');
 });
 
-test('tags are typed as a comma-separated list: trimmed, one line each, no repeats, a few at most', () => {
+test('tags are typed as a comma-separated list: trimmed, one line each, no repeats, ten at most', () => {
   assert.deepEqual(S.tagList(' Urgent , later,,  '), ['Urgent', 'later']);
   assert.deepEqual(S.tagList('Urgent, urgent, URGENT'), ['Urgent']);
   assert.deepEqual(S.tagList('a\n b\tc'), ['a b c']);
   assert.equal(S.tagList('x'.repeat(100))[0].length, S.TAG_MAX);
-  assert.equal(S.tagList('1,2,3,4,5,6,7').length, S.TAGS_MAX);
+  assert.equal(S.tagList('1,2,3,4,5,6,7,8,9,10,11,12').length, S.TAGS_MAX);
+  assert.equal(S.TAGS_MAX, 10);
   assert.deepEqual(S.tagList(''), []);
   assert.deepEqual(S.tagList(null), []);
 });
@@ -109,19 +110,55 @@ test('tags sit inside the sticky at the bottom right, in rows that stay inside i
   const pill = pillsOf(one)[0];
   assert.equal(Math.round(pill.x + pill.width), sticky.x + S.SIZE - 8, 'right edge inset 8 from the sticky right edge');
   assert.equal(Math.round(pill.y + pill.height), sticky.y + S.SIZE - 8, 'bottom edge inset 8 from the sticky bottom edge');
-  const four = tag(els, sticky, ['Alpha', 'Bravo', 'Charlie', 'Delta']).elements;
-  const boxes = pillsOf(four);
-  assert.equal(boxes.length, 4);
+  const three = tag(els, sticky, ['Alpha', 'Bravo', 'Charlie']).elements;
+  const boxes = pillsOf(three);
+  assert.equal(boxes.length, 3);
   boxes.forEach((p) => {
     assert.ok(p.x >= sticky.x && p.x + p.width <= sticky.x + S.SIZE, 'inside horizontally');
     assert.ok(p.y >= sticky.y && p.y + p.height <= sticky.y + S.SIZE, 'inside vertically');
-    const t = textOf(four, p);
+    const t = textOf(three, p);
     assert.ok(t.x >= p.x && t.x + t.width <= p.x + p.width && t.y >= p.y && t.y + t.height <= p.y + p.height, 'text inside its pill');
   });
   boxes.forEach((a, i) => boxes.forEach((b, j) => {
     if (i < j) assert.ok(a.x + a.width <= b.x || b.x + b.width <= a.x || a.y + a.height <= b.y || b.y + b.height <= a.y, 'no two tags overlap');
   }));
-  assert.ok(new Set(boxes.map((p) => p.y)).size >= 2, 'four wide tags need more than one row');
+  assert.ok(new Set(boxes.map((p) => p.y)).size >= 2, 'three tags need more than one row');
+});
+
+test('more than three tags collapse: the first two show, then a +N tag for the rest; the box still holds all of them', () => {
+  const els = stickyWithText('x');
+  const names = ['Urgent', 'Finance', 'Legal', 'Review', 'Later'];
+  const r = tag(els, els[0], names);
+  const sticky = byId(r.elements, els[0].id);
+  assert.deepEqual(tagLabels(r.elements), ['Urgent', 'Finance', '+3']);
+  assert.deepEqual(S.tagsOf(r.elements, sticky), names, 'the full list is kept');
+  assert.deepEqual(tagLabels(tag(els, els[0], ['a', 'b', 'c']).elements), ['a', 'b', 'c'], 'three still show in full');
+  assert.deepEqual(tagLabels(tag(els, els[0], ['a', 'b', 'c', 'd']).elements), ['a', 'b', '+2']);
+  const ten = tag(els, els[0], '0123456789'.split('')).elements;
+  assert.deepEqual(tagLabels(ten), ['0', '1', '+8']);
+  assert.equal(pillsOf(ten).length, 3, 'never more than three tags on the sticky');
+});
+
+test('a long tag shows shortened with an ellipsis; the box still holds the whole name', () => {
+  const els = stickyWithText('x');
+  const r = tag(els, els[0], ['Needs review by Friday', 'Short']);
+  const sticky = byId(r.elements, els[0].id);
+  assert.deepEqual(tagLabels(r.elements), ['Needs r\u2026', 'Short']);
+  assert.ok(tagLabels(r.elements)[0].length <= S.SHOWN_CHARS);
+  assert.deepEqual(S.tagsOf(r.elements, sticky), ['Needs review by Friday', 'Short']);
+  assert.deepEqual(S.shownTags(['exactly8']), ['exactly8'], 'a name at the limit is not shortened');
+});
+
+test('collapsed tags stay inside the sticky in at most two rows', () => {
+  const els = stickyWithText('x');
+  const sticky = els[0];
+  const r = tag(els, sticky, ['Needs review by Friday', 'Another long name', 'Third long name', 'Fourth', 'Fifth']).elements;
+  const boxes = pillsOf(r);
+  boxes.forEach((p) => {
+    assert.ok(p.x >= sticky.x && p.x + p.width <= sticky.x + S.SIZE);
+    assert.ok(p.y >= sticky.y && p.y + p.height <= sticky.y + S.SIZE);
+  });
+  assert.ok(new Set(boxes.map((p) => p.y)).size <= 2);
 });
 
 test('changing the tags deletes the old ones and keeps the same group', () => {
@@ -213,14 +250,16 @@ test('selecting only pieces of one sticky finds the sticky; anything else select
   assert.equal(S.stickyFor(r.concat(other), { [sticky.id]: true, [other[0].id]: true }), null, 'two stickies are not "a sticky"');
 });
 
-// The reload case: a board file saved by the viewer (through Excalidraw's own save) with one sticky and two tags.
+// The reload case: a board file saved by the viewer (through Excalidraw's own save) with one sticky and five tags, the first long.
 const fixture = JSON.parse(fs.readFileSync(path.join(__dirname, 'fixtures', 'tagged-sticky.excalidraw'), 'utf8'));
+const FULL = ['Needs review by Frid', 'Urgent', 'Finance', 'Extra', 'Later'];
 
-test('a saved board brings the sticky and its tags back', () => {
+test('a saved board brings the sticky, its full tag list and its short view back', () => {
   const els = fixture.elements;
   const sticky = els.find(S.isSticky);
   assert.ok(sticky);
-  assert.deepEqual(S.tagsOf(els, sticky), ['Urgent', 'Finance']);
+  assert.deepEqual(S.tagsOf(els, sticky), FULL);
+  assert.deepEqual(S.shownTags(FULL), pillsOf(els).map((p) => textOf(els, p).text), 'what is drawn is the short view of the list');
   assert.equal(S.stickyFor(els, { [els.find(S.isTag).id]: true }), sticky);
 });
 
@@ -228,8 +267,11 @@ test('tags can be changed and removed on a reloaded board', () => {
   const els = fixture.elements;
   const sticky = els.find(S.isSticky);
   const changed = tag(els, sticky, ['Later']);
-  assert.deepEqual(S.tagsOf(changed.elements, sticky), ['Later']);
-  assert.deepEqual(S.tagsOf(tag(changed.elements, sticky, []).elements, sticky), []);
+  const fresh = byId(changed.elements, sticky.id);
+  assert.deepEqual(S.tagsOf(changed.elements, fresh), ['Later']);
+  assert.deepEqual(tagLabels(changed.elements), ['Later']);
+  const gone = tag(changed.elements, fresh, []);
+  assert.deepEqual(S.tagsOf(gone.elements, byId(gone.elements, sticky.id)), []);
 });
 
 test('the board stays plain Excalidraw JSON: stock element fields plus customData, nothing else', () => {
@@ -239,7 +281,8 @@ test('the board stays plain Excalidraw JSON: stock element fields plus customDat
     'baseline', 'containerId', 'originalText', 'lineHeight']);
   fixture.elements.forEach((e) => {
     Object.keys(e).forEach((k) => assert.ok(stock.has(k), 'unexpected field ' + k));
-    if (e.customData) assert.deepEqual(Object.keys(e.customData), ['kind']);
+    if (e.customData && e.customData.kind === 'sticky-tag') assert.deepEqual(Object.keys(e.customData), ['kind']);
+    if (e.customData && e.customData.kind === 'sticky') assert.ok(Object.keys(e.customData).every((k) => ['kind', 'tags'].includes(k)));
     if (e.customData) assert.ok(['sticky', 'sticky-tag'].includes(e.customData.kind));
   });
   assert.deepEqual(JSON.parse(JSON.stringify(fixture)), fixture);
@@ -247,4 +290,15 @@ test('the board stays plain Excalidraw JSON: stock element fields plus customDat
     const box = fixture.elements.find((b) => b.id === t.containerId);
     assert.ok(box.boundElements.some((b) => b.id === t.id), 'bound text is listed by its container');
   });
+});
+
+test('changing a collapsed list rebuilds the short view and clearing it leaves a plain sticky', () => {
+  const els = stickyWithText('x');
+  const one = tag(els, els[0], ['a', 'b', 'c', 'd', 'e']);
+  const sticky = byId(one.elements, els[0].id);
+  const two = tag(one.elements, sticky, ['a', 'b', 'c', 'd']);
+  assert.deepEqual(tagLabels(two.elements), ['a', 'b', '+2']);
+  assert.deepEqual(S.tagsOf(two.elements, byId(two.elements, els[0].id)), ['a', 'b', 'c', 'd']);
+  const gone = tag(two.elements, byId(two.elements, els[0].id), []);
+  assert.deepEqual(byId(gone.elements, els[0].id).customData, { kind: 'sticky' });
 });

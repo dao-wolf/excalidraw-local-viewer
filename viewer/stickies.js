@@ -2,9 +2,11 @@
 //
 // A sticky is a square rectangle with a fill colour, marked by customData { kind: 'sticky' }. Its text is Excalidraw's
 // own bound text, so it wraps, and in stock Excalidraw the sticky is just a rectangle with text.
-// A tag is a small rounded rectangle with bound text, marked by customData { kind: 'sticky-tag' }. A sticky can have
-// several. They sit inside the sticky at the bottom right, in rows that fill upwards, and share one group with the sticky,
-// so they move together. The link between a sticky and its tags is that group: the innermost group id of the sticky is the
+// The full list of tags is kept on the sticky: customData { kind: 'sticky', tags: ['Urgent', ...] }. What is drawn is a short
+// view of it. A tag is drawn as a small rounded rectangle with bound text, marked by customData { kind: 'sticky-tag' }. At
+// most three are drawn: a list of more than three shows its first two and then "+N" for the rest, and a long name is cut
+// short with an ellipsis. They sit inside the sticky at the bottom right, in rows that fill upwards, and share one group with
+// the sticky, so they move together. The link between a sticky and its tags is that group: the innermost group id of the sticky is the
 // innermost group id of each of its tags. (A copy made by Excalidraw gets new group ids, so a copy keeps working.)
 // A sticky with no tags is not in that group, so a single double-click edits its text.
 //
@@ -15,10 +17,12 @@
   var STEP = SIZE + 16; // distance from one sticky to the next in a row
   var VIEW_MARGIN = 16;
   var TAG_MAX = 20; // characters in one tag
-  var TAGS_MAX = 4;
+  var TAGS_MAX = 10;
+  var TAGS_SHOWN = 3; // most tags drawn on a sticky, the "+N" one included
+  var SHOWN_CHARS = 8; // most characters of one tag drawn, the ellipsis included
   var TAG_INSET = 8; // gap between the tags and the sticky's edges
   var TAG_GAP = 4;
-  var TAG_PAD_X = 8;
+  var TAG_PAD_X = 6;
   var TAG_PAD_Y = 3;
   var TAG_FONT_SIZE = 14;
   var HELVETICA = 2; // the sample board's font; the tag is metadata, so it differs from the sticky's own text
@@ -115,11 +119,17 @@
     return elements.filter(function (e) { return live(e) && isTag(e) && innermost(e) === group; });
   }
 
+  // The full list of tags of a sticky.
   function tagsOf(elements, sticky) {
-    return pillsOf(elements, sticky).map(function (pill) {
-      var text = boundText(elements, pill);
-      return text ? text.text : '';
-    });
+    return (sticky.customData && sticky.customData.tags) || [];
+  }
+
+  // What is drawn for a list of tags: each name cut to SHOWN_CHARS, and with more than TAGS_SHOWN of them the first
+  // TAGS_SHOWN - 1 and then "+N" for the rest.
+  function shownTags(tags) {
+    var labels = tags.map(function (t) { return t.length > SHOWN_CHARS ? t.slice(0, SHOWN_CHARS - 1) + '\u2026' : t; });
+    if (labels.length <= TAGS_SHOWN) return labels;
+    return labels.slice(0, TAGS_SHOWN - 1).concat(['+' + (labels.length - (TAGS_SHOWN - 1))]);
   }
 
   // Excalidraw reads a changed version as a change, so every edit bumps it.
@@ -203,16 +213,17 @@
     var groupId = tags.length ? (oldGroup || newId()) : null;
     var groupIds = groupId ? [groupId].concat(outer) : outer;
 
+    var customData = { kind: 'sticky' };
+    if (tags.length) customData.tags = tags;
     var kept = elements.map(function (e) {
       if (drop[e.id]) return touched(e, { isDeleted: true });
-      if (e.id === sticky.id || (stickyText && e.id === stickyText.id)) {
-        return e.groupIds.join() === groupIds.join() ? e : touched(e, { groupIds: groupIds });
-      }
+      if (e.id === sticky.id) return touched(e, { groupIds: groupIds, customData: customData });
+      if (stickyText && e.id === stickyText.id) return e.groupIds.join() === groupIds.join() ? e : touched(e, { groupIds: groupIds });
       return e;
     });
     if (!tags.length) return { elements: kept, groupId: null };
 
-    var made = convert(tags.map(function (t) { return tagSkeleton(sticky, t); }));
+    var made = convert(shownTags(tags).map(function (t) { return tagSkeleton(sticky, t); }));
     var parts = made.filter(function (e) { return e.type === 'rectangle'; }).map(function (rect) {
       return { rect: rect, text: made.filter(function (e) { return e.containerId === rect.id; })[0] };
     });
@@ -224,9 +235,9 @@
   }
 
   var api = {
-    SIZE: SIZE, TAG_MAX: TAG_MAX, TAGS_MAX: TAGS_MAX, COLOURS: COLOURS,
+    SIZE: SIZE, TAG_MAX: TAG_MAX, TAGS_MAX: TAGS_MAX, SHOWN_CHARS: SHOWN_CHARS, COLOURS: COLOURS,
     isSticky: isSticky, isTag: isTag, tagList: tagList, freeSpot: freeSpot,
-    stickySkeleton: stickySkeleton, stickyFor: stickyFor, tagsOf: tagsOf, setTags: setTags,
+    stickySkeleton: stickySkeleton, stickyFor: stickyFor, tagsOf: tagsOf, shownTags: shownTags, setTags: setTags,
   };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.Stickies = api;

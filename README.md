@@ -36,7 +36,7 @@ and text.
 | To do this | Do this |
 |---|---|
 | Add a sticky | Click a coloured **+** (yellow, green, blue or pink). A square sticky appears at the centre of the view and its text box opens: type, then press Escape. The next sticky goes beside it, and when a row reaches the edge of the view the next row starts below |
-| Tag a sticky | Select the sticky (it stays selected when you press Escape after typing its text; if you left its text empty, click it), type its tags in the box, separated by commas (`Urgent, Finance`), press Enter. Up to 4 tags of up to 20 characters each. They sit inside the sticky at the bottom right, in rows that fill upwards |
+| Tag a sticky | Select the sticky (it stays selected when you press Escape after typing its text; if you left its text empty, click it), type its tags in the box, separated by commas (`Urgent, Finance`), press Enter. Up to 10 tags of up to 20 characters each. They sit inside the sticky at the bottom right, in rows that fill upwards. To keep the sticky readable it draws at most three: with more than three tags it shows the first two and then **+N** for the rest, and a name longer than 8 characters is cut short with an ellipsis. The box always shows the full list |
 | Change or remove tags | Select the sticky, edit the list in the box, press Enter. Empty the box to remove them all. Escape leaves the box without changing anything |
 | Edit the text of a tagged sticky | Select it and press Enter. (A double-click works too, but a tagged sticky is in a group, so it takes two) |
 
@@ -46,7 +46,7 @@ adding and tagging. A long sticky text can run under the tags: make the text sho
 
 Boards stay plain Excalidraw JSON, and the files saved are the same as any other board. A sticky is a rectangle with
 bound text and a tag is a small rounded rectangle with bound text; both carry a `customData` marker (`kind: "sticky"` or
-`kind: "sticky-tag"`) that Excalidraw keeps and ignores. A tag belongs to the sticky it shares a group with. Excalidraw
+`kind: "sticky-tag"`) that Excalidraw keeps and ignores. The full list of tags is stored on the sticky (`customData.tags`) and the drawn tags are a short view of it, so if you edit a drawn tag by hand in stock Excalidraw, the list is not changed and the next change in the bar redraws the tags from the list. A tag belongs to the sticky it shares a group with. Excalidraw
 0.17.6 without this bar loads them as plain rectangles with text; you just lose the bar. The rules live in
 `viewer/stickies.js`, the bar in `viewer/stickies-ui.js`.
 
