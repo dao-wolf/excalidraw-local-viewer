@@ -161,6 +161,27 @@ test('collapsed tags stay inside the sticky in at most two rows', () => {
   assert.ok(new Set(boxes.map((p) => p.y)).size <= 2);
 });
 
+test('the drawn tags are locked, so they cannot be edited or moved on their own; the sticky and its text stay free', () => {
+  const els = stickyWithText('Pay the invoice');
+  const check = (all, label) => {
+    const pills = pillsOf(all);
+    assert.ok(pills.length > 0, label + ': there are tags to check');
+    pills.forEach((p) => {
+      assert.equal(p.locked, true, label + ': a tag is locked');
+      assert.equal(textOf(all, p).locked, true, label + ': the text of a tag is locked');
+    });
+    const sticky = all.find(S.isSticky);
+    assert.notEqual(sticky.locked, true, label + ': the sticky is not locked');
+    assert.notEqual(byId(all, els[1].id).locked, true, label + ': the sticky text is not locked');
+  };
+  const one = tag(els, els[0], ['Urgent', 'Finance']);
+  check(one.elements, 'first tags');
+  const two = tag(one.elements, byId(one.elements, els[0].id), ['a', 'b', 'c', 'd', 'e']);
+  check(two.elements, 'changed to a collapsed list');
+  const gone = tag(two.elements, byId(two.elements, els[0].id), []);
+  live(gone.elements).forEach((e) => assert.notEqual(e.locked, true, 'with no tags nothing is locked'));
+});
+
 test('changing the tags deletes the old ones and keeps the same group', () => {
   const els = stickyWithText('x');
   const one = tag(els, els[0], ['Urgent', 'Finance']);
@@ -261,6 +282,11 @@ test('a saved board brings the sticky, its full tag list and its short view back
   assert.deepEqual(S.tagsOf(els, sticky), FULL);
   assert.deepEqual(S.shownTags(FULL), pillsOf(els).map((p) => textOf(els, p).text), 'what is drawn is the short view of the list');
   assert.equal(S.stickyFor(els, { [els.find(S.isTag).id]: true }), sticky);
+  pillsOf(els).forEach((p) => {
+    assert.equal(p.locked, true, 'a saved tag is still locked');
+    assert.equal(textOf(els, p).locked, true);
+  });
+  assert.notEqual(sticky.locked, true);
 });
 
 test('tags can be changed and removed on a reloaded board', () => {

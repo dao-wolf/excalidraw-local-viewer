@@ -8,6 +8,8 @@
 // short with an ellipsis. They sit inside the sticky at the bottom right, in rows that fill upwards, and share one group with
 // the sticky, so they move together. The link between a sticky and its tags is that group: the innermost group id of the sticky is the
 // innermost group id of each of its tags. (A copy made by Excalidraw gets new group ids, so a copy keeps working.)
+// The drawn tags are locked (Excalidraw's own `locked`), so a click or double-click on one reaches the sticky instead: tags
+// are changed only in the tag box, never on the board.
 // A sticky with no tags is not in that group, so a single double-click edits its text.
 //
 // This file only works out which elements to add, change or delete. It touches no page, so it also runs in Node.
@@ -229,7 +231,7 @@
     });
     var placed = [];
     layoutTags(sticky, parts).forEach(function (p) {
-      placed.push(touched(p.rect, { groupIds: groupIds }), touched(p.text, { groupIds: groupIds }));
+      placed.push(touched(p.rect, { groupIds: groupIds, locked: true }), touched(p.text, { groupIds: groupIds, locked: true }));
     });
     return { elements: kept.concat(placed), groupId: groupId };
   }

@@ -40,14 +40,16 @@ and text.
 | Change or remove tags | Select the sticky, edit the list in the box, press Enter. Empty the box to remove them all. Escape leaves the box without changing anything |
 | Edit the text of a tagged sticky | Select it and press Enter. (A double-click works too, but a tagged sticky is in a group, so it takes two) |
 
-The box always edits the sticky it was opened for, even if you click another sticky before you press Enter. A tagged sticky
-and its tags are one group, so they move together; a copy (Ctrl or Cmd + D) gets its own tags. Undo (Ctrl or Cmd + Z) works for
+The box always edits the sticky it was opened for, even if you click another sticky before you press Enter. The tags drawn on
+a sticky are locked (Excalidraw's own lock): you cannot select, edit or drag one on its own, and a click or double-click on a tag acts on
+the sticky, so tags are changed only in the box. A tagged sticky and its tags are one group, so they move together; a copy
+(Ctrl or Cmd + D) gets its own tags. Undo (Ctrl or Cmd + Z) works for
 adding and tagging. A long sticky text can run under the tags: make the text shorter, or the tags fewer.
 
 Boards stay plain Excalidraw JSON, and the files saved are the same as any other board. A sticky is a rectangle with
 bound text and a tag is a small rounded rectangle with bound text; both carry a `customData` marker (`kind: "sticky"` or
-`kind: "sticky-tag"`) that Excalidraw keeps and ignores. The full list of tags is stored on the sticky (`customData.tags`) and the drawn tags are a short view of it, so if you edit a drawn tag by hand in stock Excalidraw, the list is not changed and the next change in the bar redraws the tags from the list. A tag belongs to the sticky it shares a group with. Excalidraw
-0.17.6 without this bar loads them as plain rectangles with text; you just lose the bar. The rules live in
+`kind: "sticky-tag"`) that Excalidraw keeps and ignores. The full list of tags is stored on the sticky (`customData.tags`) and the drawn tags, which carry `locked: true`, are a short view of it. Excalidraw's right-click menu has **Unlock all**, which frees every locked element on the board; if you then edit a drawn tag by hand, the list is not changed, and the next change in the box redraws the tags from the list, locked again. A tag belongs to the sticky it shares a group with. Excalidraw
+0.17.6 without this bar loads them as plain rectangles with text (the tags locked); you just lose the bar. The rules live in
 `viewer/stickies.js`, the bar in `viewer/stickies-ui.js`.
 
 ## Saving and exporting
