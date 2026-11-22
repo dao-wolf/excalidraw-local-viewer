@@ -146,7 +146,8 @@
   }
 
   // Place sized tags inside the sticky, whatever size it has been resized to: rows from the bottom up, each row against the
-  // right edge, a tag that no longer fits starting the next row up. `parts` is [{ rect, text }] and the result has the same shape and order, moved and resized.
+  // right edge, a tag that no longer fits starting the next row up. `parts` is [{ rect, text }] and the result has the same
+  // shape and order, moved and resized.
   function layoutTags(sticky, parts) {
     var room = sticky.width - 2 * TAG_INSET;
     var boxes = parts.map(function (p) {
