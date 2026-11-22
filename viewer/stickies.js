@@ -13,7 +13,8 @@
 // A sticky with no tags is not in that group, so a single double-click edits its text.
 //
 // This file only works out which elements to add, change or delete. It touches no page, so it also runs in Node.
-// The page passes in `convert` (Excalidraw's convertToExcalidrawElements), which sizes the text.
+// The page passes in `tools`: { convert, newId }. `convert` is Excalidraw's convertToExcalidrawElements, which sizes the
+// text, and `newId` makes a new group id.
 (function (root) {
   var SIZE = 180;
   var STEP = SIZE + 16; // distance from one sticky to the next in a row
@@ -45,6 +46,14 @@
     return elements.filter(function (e) { return live(e) && e.type === 'text' && e.containerId === container.id; })[0] || null;
   }
   function innermost(e) { return e.groupIds.length ? e.groupIds[0] : null; }
+  function indexById(elements) {
+    var byId = {};
+    elements.forEach(function (e) { byId[e.id] = e; });
+    return byId;
+  }
+  function sameList(a, b) {
+    return a.length === b.length && a.every(function (item, i) { return item === b[i]; });
+  }
 
   // One tag: one line, trimmed, at most TAG_MAX characters.
   function cleanTag(text) {
@@ -82,9 +91,9 @@
     return spot;
   }
 
-  // The skeleton of one sticky, centred on (cx, cy). Excalidraw adds the text when the user types into it.
-  function stickySkeleton(elements, cx, cy, colourName, view) {
-    var spot = freeSpot(elements, cx - SIZE / 2, cy - SIZE / 2, view);
+  // The skeleton of one sticky, centred on `centre` ({ x, y }). Excalidraw adds the text when the user types into it.
+  function stickySkeleton(elements, centre, colourName, view) {
+    var spot = freeSpot(elements, centre.x - SIZE / 2, centre.y - SIZE / 2, view);
     return {
       type: 'rectangle', x: spot.x, y: spot.y, width: SIZE, height: SIZE,
       backgroundColor: colourNamed(colourName).fill, strokeColor: 'transparent', fillStyle: 'solid',
@@ -92,26 +101,38 @@
     };
   }
 
+  // A text bound to a shape counts as that shape.
+  function shapeOf(byId, e) {
+    if (e.type !== 'text') return e;
+    return byId[e.containerId] || e;
+  }
+
+  // The live sticky whose innermost group is `group`, or null.
+  function stickyInGroup(elements, group) {
+    if (!group) return null;
+    return elements.filter(function (s) { return live(s) && isSticky(s) && innermost(s) === group; })[0] || null;
+  }
+
   // The sticky that a selected element belongs to: the sticky, its text, one of its tags or a tag's text.
   function ownerOf(elements, byId, e) {
-    if (e.type === 'text' && e.containerId && byId[e.containerId]) e = byId[e.containerId];
-    if (isSticky(e)) return e;
-    if (!isTag(e) || !innermost(e)) return null;
-    return elements.filter(function (s) { return live(s) && isSticky(s) && innermost(s) === innermost(e); })[0] || null;
+    var shape = shapeOf(byId, e);
+    if (isSticky(shape)) return shape;
+    return isTag(shape) ? stickyInGroup(elements, innermost(shape)) : null;
+  }
+
+  // The live elements among the selected ids.
+  function selectedElements(byId, selectedIds) {
+    return Object.keys(selectedIds)
+      .filter(function (id) { return selectedIds[id] && byId[id] && live(byId[id]); })
+      .map(function (id) { return byId[id]; });
   }
 
   // The sticky the selection is made of, or null: the selection must hold pieces of one sticky and nothing else.
   function stickyFor(elements, selectedIds) {
-    var byId = {};
-    elements.forEach(function (e) { byId[e.id] = e; });
-    var found = null;
-    var ids = Object.keys(selectedIds).filter(function (id) { return selectedIds[id] && byId[id] && live(byId[id]); });
-    for (var i = 0; i < ids.length; i++) {
-      var owner = ownerOf(elements, byId, byId[ids[i]]);
-      if (!owner || (found && found !== owner)) return null;
-      found = owner;
-    }
-    return found;
+    var byId = indexById(elements);
+    var owners = selectedElements(byId, selectedIds).map(function (e) { return ownerOf(elements, byId, e); });
+    var first = owners[0] || null;
+    return owners.every(function (owner) { return owner === first; }) ? first : null;
   }
 
   // The live tags of a sticky (rectangles, in the order they were made).
@@ -129,7 +150,7 @@
   // What is drawn for a list of tags: each name cut to SHOWN_CHARS, and with more than TAGS_SHOWN of them the first
   // TAGS_SHOWN - 1 and then "+N" for the rest.
   function shownTags(tags) {
-    var labels = tags.map(function (t) { return t.length > SHOWN_CHARS ? t.slice(0, SHOWN_CHARS - 1) + '\u2026' : t; });
+    var labels = tags.map(function (t) { return t.length > SHOWN_CHARS ? t.slice(0, SHOWN_CHARS - 1) + '…' : t; });
     if (labels.length <= TAGS_SHOWN) return labels;
     return labels.slice(0, TAGS_SHOWN - 1).concat(['+' + (labels.length - (TAGS_SHOWN - 1))]);
   }
@@ -194,38 +215,45 @@
     };
   }
 
-  // Set the tags of `sticky` to `tags` (an array of cleaned strings; empty removes them all). Returns { elements, groupId }:
-  // groupId is null when the sticky has no tags afterwards. Never edits an element in place: changed ones are copies with a
-  // new version. Every change rebuilds all the tags, so they are always laid out as one set.
-  function setTags(elements, sticky, tags, convert, newId) {
-    var olds = pillsOf(elements, sticky);
-    var oldTags = tagsOf(elements, sticky);
-    var oldGroup = olds.length ? innermost(sticky) : null;
-    if (oldTags.length === tags.length && oldTags.every(function (t, i) { return t === tags[i]; })) {
-      return { elements: elements, groupId: oldGroup };
-    }
+  // The group a sticky shares with its drawn tags (`pills`), or null when it has none drawn.
+  function tagGroup(sticky, pills) {
+    return pills.length ? innermost(sticky) : null;
+  }
 
-    var drop = {};
-    olds.forEach(function (pill) {
-      drop[pill.id] = true;
-      var text = boundText(elements, pill);
-      if (text) drop[text.id] = true;
-    });
-    var stickyText = boundText(elements, sticky);
+  // The sticky's group ids once its tag group is `groupId` (null for none): that group innermost, then the groups it was
+  // already in outside its tag group.
+  function groupIdsFor(sticky, oldGroup, groupId) {
     var outer = oldGroup ? sticky.groupIds.slice(1) : sticky.groupIds;
-    var groupId = tags.length ? (oldGroup || newId()) : null;
-    var groupIds = groupId ? [groupId].concat(outer) : outer;
+    return groupId ? [groupId].concat(outer) : outer;
+  }
 
-    var customData = { kind: 'sticky' };
-    if (tags.length) customData.tags = tags;
-    var kept = elements.map(function (e) {
-      if (drop[e.id]) return touched(e, { isDeleted: true });
-      if (e.id === sticky.id) return touched(e, { groupIds: groupIds, customData: customData });
-      if (stickyText && e.id === stickyText.id) return e.groupIds.join() === groupIds.join() ? e : touched(e, { groupIds: groupIds });
+  function stickyData(tags) {
+    return tags.length ? { kind: 'sticky', tags: tags } : { kind: 'sticky' };
+  }
+
+  // `elements` with the given tags (rectangles) and their texts marked deleted.
+  function withoutTags(elements, pills) {
+    var gone = {};
+    pills.forEach(function (pill) {
+      gone[pill.id] = true;
+      var text = boundText(elements, pill);
+      if (text) gone[text.id] = true;
+    });
+    return elements.map(function (e) { return gone[e.id] ? touched(e, { isDeleted: true }) : e; });
+  }
+
+  // `elements` with the sticky and its text moved into `groupIds`, and the sticky holding `tags`.
+  function regrouped(elements, sticky, groupIds, tags) {
+    var text = boundText(elements, sticky);
+    return elements.map(function (e) {
+      if (e.id === sticky.id) return touched(e, { groupIds: groupIds, customData: stickyData(tags) });
+      if (text && e.id === text.id) return sameList(e.groupIds, groupIds) ? e : touched(e, { groupIds: groupIds });
       return e;
     });
-    if (!tags.length) return { elements: kept, groupId: null };
+  }
 
+  // The tags to draw for a list of tags: their short view, sized by `convert`, placed inside the sticky, in the group, locked.
+  function drawTags(sticky, tags, groupIds, convert) {
     var made = convert(shownTags(tags).map(function (t) { return tagSkeleton(sticky, t); }));
     var parts = made.filter(function (e) { return e.type === 'rectangle'; }).map(function (rect) {
       return { rect: rect, text: made.filter(function (e) { return e.containerId === rect.id; })[0] };
@@ -234,7 +262,22 @@
     layoutTags(sticky, parts).forEach(function (p) {
       placed.push(touched(p.rect, { groupIds: groupIds, locked: true }), touched(p.text, { groupIds: groupIds, locked: true }));
     });
-    return { elements: kept.concat(placed), groupId: groupId };
+    return placed;
+  }
+
+  // Set the tags of `sticky` to `tags` (an array of cleaned strings; empty removes them all). `tools` is { convert, newId }.
+  // Returns { elements, groupId }: groupId is null when the sticky has no tags afterwards. Never edits an element in place:
+  // changed ones are copies with a new version. Every change rebuilds all the tags, so they are always laid out as one set.
+  function setTags(elements, sticky, tags, tools) {
+    var olds = pillsOf(elements, sticky);
+    var oldGroup = tagGroup(sticky, olds);
+    if (sameList(tagsOf(elements, sticky), tags)) return { elements: elements, groupId: oldGroup };
+
+    var groupId = tags.length ? oldGroup || tools.newId() : null;
+    var groupIds = groupIdsFor(sticky, oldGroup, groupId);
+    var kept = regrouped(withoutTags(elements, olds), sticky, groupIds, tags);
+    if (!groupId) return { elements: kept, groupId: null };
+    return { elements: kept.concat(drawTags(sticky, tags, groupIds, tools.convert)), groupId: groupId };
   }
 
   var api = {

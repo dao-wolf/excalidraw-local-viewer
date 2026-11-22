@@ -28,7 +28,7 @@ function convert(skeletons) {
 
 // A sticky as Excalidraw leaves it once the user has typed into it: the rectangle and its bound text.
 function stickyWithText(text, x, y) {
-  const rect = convert([S.stickySkeleton([], (x || 300) + S.SIZE / 2, (y || 300) + S.SIZE / 2, 'yellow')])[0];
+  const rect = convert([S.stickySkeleton([], { x: (x || 300) + S.SIZE / 2, y: (y || 300) + S.SIZE / 2 }, 'yellow')])[0];
   const body = { id: 'body-' + rect.id, type: 'text', text: text, originalText: text, containerId: rect.id, version: 1, isDeleted: false, groupIds: [], boundElements: null };
   rect.boundElements = [{ type: 'text', id: body.id }];
   return [rect, body];
@@ -39,10 +39,15 @@ const byId = (els, id) => els.find((e) => e.id === id);
 const pillsOf = (els) => live(els).filter(S.isTag);
 const textOf = (els, pill) => els.find((e) => e.type === 'text' && e.containerId === pill.id && !e.isDeleted);
 const tagLabels = (els) => pillsOf(els).map((p) => textOf(els, p).text);
-const tag = (els, sticky, tags) => S.setTags(els, sticky, tags, convert, newId);
+const tag = (els, sticky, tags) => S.setTags(els, sticky, tags, { convert: convert, newId: newId });
+
+// Boxes are { x, y, width, height }. Is `inner` wholly inside `outer`? Do `a` and `b` share no area?
+const within = (inner, outer) => inner.x >= outer.x && inner.y >= outer.y
+  && inner.x + inner.width <= outer.x + outer.width && inner.y + inner.height <= outer.y + outer.height;
+const apart = (a, b) => a.x + a.width <= b.x || b.x + b.width <= a.x || a.y + a.height <= b.y || b.y + b.height <= a.y;
 
 test('a sticky is a roughly square, filled rectangle centred where asked', () => {
-  const sk = S.stickySkeleton([], 500, 400, 'yellow');
+  const sk = S.stickySkeleton([], { x: 500, y: 400 }, 'yellow');
   assert.equal(sk.type, 'rectangle');
   assert.equal(sk.width, sk.height);
   assert.equal(sk.x + sk.width / 2, 500);
@@ -53,19 +58,19 @@ test('a sticky is a roughly square, filled rectangle centred where asked', () =>
 });
 
 test('there are four colours and each makes a different fill', () => {
-  const fills = S.COLOURS.map((c) => S.stickySkeleton([], 0, 0, c.name).backgroundColor);
+  const fills = S.COLOURS.map((c) => S.stickySkeleton([], { x: 0, y: 0 }, c.name).backgroundColor);
   assert.deepEqual(S.COLOURS.map((c) => c.name), ['yellow', 'green', 'blue', 'pink']);
   assert.equal(new Set(fills).size, 4);
-  assert.throws(() => S.stickySkeleton([], 0, 0, 'purple'), /Unknown sticky colour/);
+  assert.throws(() => S.stickySkeleton([], { x: 0, y: 0 }, 'purple'), /Unknown sticky colour/);
 });
 
 test('a sticky at an occupied spot moves right, beside the first, not on top of it', () => {
-  const first = convert([S.stickySkeleton([], 500, 400, 'green')]);
-  const second = S.stickySkeleton(first, 500, 400, 'green');
+  const first = convert([S.stickySkeleton([], { x: 500, y: 400 }, 'green')]);
+  const second = S.stickySkeleton(first, { x: 500, y: 400 }, 'green');
   assert.equal(second.y, first[0].y);
   assert.ok(second.x >= first[0].x + S.SIZE, 'the two stickies do not overlap');
   first[0].isDeleted = true;
-  assert.equal(S.stickySkeleton(first, 500, 400, 'green').x, first[0].x, 'a deleted sticky does not take the spot');
+  assert.equal(S.stickySkeleton(first, { x: 500, y: 400 }, 'green').x, first[0].x, 'a deleted sticky does not take the spot');
 });
 
 test('when the row reaches the edge of the view the next sticky starts a new row', () => {
@@ -73,7 +78,7 @@ test('when the row reaches the edge of the view the next sticky starts a new row
   let els = [];
   const spots = [];
   for (let i = 0; i < 5; i++) {
-    const sk = S.stickySkeleton(els, 350, 100, 'blue', view);
+    const sk = S.stickySkeleton(els, { x: 350, y: 100 }, 'blue', view);
     spots.push([sk.x, sk.y]);
     els = els.concat(convert([sk]));
   }
@@ -114,14 +119,10 @@ test('tags sit inside the sticky at the bottom right, in rows that stay inside i
   const boxes = pillsOf(three);
   assert.equal(boxes.length, 3);
   boxes.forEach((p) => {
-    assert.ok(p.x >= sticky.x && p.x + p.width <= sticky.x + S.SIZE, 'inside horizontally');
-    assert.ok(p.y >= sticky.y && p.y + p.height <= sticky.y + S.SIZE, 'inside vertically');
-    const t = textOf(three, p);
-    assert.ok(t.x >= p.x && t.x + t.width <= p.x + p.width && t.y >= p.y && t.y + t.height <= p.y + p.height, 'text inside its pill');
+    assert.ok(within(p, sticky), 'inside the sticky');
+    assert.ok(within(textOf(three, p), p), 'text inside its pill');
   });
-  boxes.forEach((a, i) => boxes.forEach((b, j) => {
-    if (i < j) assert.ok(a.x + a.width <= b.x || b.x + b.width <= a.x || a.y + a.height <= b.y || b.y + b.height <= a.y, 'no two tags overlap');
-  }));
+  boxes.forEach((a, i) => boxes.slice(i + 1).forEach((b) => assert.ok(apart(a, b), 'no two tags overlap')));
   assert.ok(new Set(boxes.map((p) => p.y)).size >= 2, 'three tags need more than one row');
 });
 
@@ -135,10 +136,7 @@ test('tags follow the real size of the sticky: inset from its own bottom-right c
     assert.equal(Math.round(one.x + one.width), sticky.x + width - 8, width + 'x' + height + ': right edge inset 8 from the sticky right edge');
     assert.equal(Math.round(one.y + one.height), sticky.y + height - 8, width + 'x' + height + ': bottom edge inset 8 from the sticky bottom edge');
     const two = tag(resized, sticky, ['Urgent', 'Later']).elements;
-    pillsOf(two).forEach((p) => {
-      assert.ok(p.x >= sticky.x && p.x + p.width <= sticky.x + width, width + 'x' + height + ': inside horizontally');
-      assert.ok(p.y >= sticky.y && p.y + p.height <= sticky.y + height, width + 'x' + height + ': inside vertically');
-    });
+    pillsOf(two).forEach((p) => assert.ok(within(p, sticky), width + 'x' + height + ': inside the sticky'));
   });
 });
 
@@ -171,10 +169,7 @@ test('collapsed tags stay inside the sticky in at most two rows', () => {
   const sticky = els[0];
   const r = tag(els, sticky, ['Needs review by Friday', 'Another long name', 'Third long name', 'Fourth', 'Fifth']).elements;
   const boxes = pillsOf(r);
-  boxes.forEach((p) => {
-    assert.ok(p.x >= sticky.x && p.x + p.width <= sticky.x + S.SIZE);
-    assert.ok(p.y >= sticky.y && p.y + p.height <= sticky.y + S.SIZE);
-  });
+  boxes.forEach((p) => assert.ok(within(p, sticky), 'inside the sticky'));
   assert.ok(new Set(boxes.map((p) => p.y)).size <= 2);
 });
 
