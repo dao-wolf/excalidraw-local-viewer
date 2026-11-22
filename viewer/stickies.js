@@ -145,10 +145,10 @@
     return next;
   }
 
-  // Place sized tags inside the sticky: rows from the bottom up, each row against the right edge, a tag that no longer fits
-  // starting the next row up. `parts` is [{ rect, text }] and the result has the same shape and order, moved and resized.
+  // Place sized tags inside the sticky, whatever size it has been resized to: rows from the bottom up, each row against the
+  // right edge, a tag that no longer fits starting the next row up. `parts` is [{ rect, text }] and the result has the same shape and order, moved and resized.
   function layoutTags(sticky, parts) {
-    var room = SIZE - 2 * TAG_INSET;
+    var room = sticky.width - 2 * TAG_INSET;
     var boxes = parts.map(function (p) {
       return { part: p, w: Math.ceil(p.text.width + 2 * TAG_PAD_X), h: Math.ceil(p.text.height + 2 * TAG_PAD_Y) };
     });
@@ -162,8 +162,8 @@
     });
     if (row.length) rows.push(row);
 
-    var right = sticky.x + SIZE - TAG_INSET;
-    var top = sticky.y + SIZE - TAG_INSET;
+    var right = sticky.x + sticky.width - TAG_INSET;
+    var top = sticky.y + sticky.height - TAG_INSET;
     rows.forEach(function (r) {
       var rowH = Math.max.apply(null, r.map(function (b) { return b.h; }));
       var rowW = r.reduce(function (sum, b) { return sum + b.w; }, 0) + TAG_GAP * (r.length - 1);

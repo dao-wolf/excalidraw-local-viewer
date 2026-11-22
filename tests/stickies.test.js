@@ -125,6 +125,23 @@ test('tags sit inside the sticky at the bottom right, in rows that stay inside i
   assert.ok(new Set(boxes.map((p) => p.y)).size >= 2, 'three tags need more than one row');
 });
 
+test('tags follow the real size of the sticky: inset from its own bottom-right corner, inside it', () => {
+  const sizes = [{ width: 300, height: 240 }, { width: 140, height: 120 }, { width: 400, height: 150 }];
+  sizes.forEach(({ width, height }) => {
+    const els = stickyWithText('x', 100, 100);
+    const resized = [Object.assign({}, els[0], { width: width, height: height }), els[1]];
+    const sticky = resized[0];
+    const one = pillsOf(tag(resized, sticky, ['Urgent']).elements)[0];
+    assert.equal(Math.round(one.x + one.width), sticky.x + width - 8, width + 'x' + height + ': right edge inset 8 from the sticky right edge');
+    assert.equal(Math.round(one.y + one.height), sticky.y + height - 8, width + 'x' + height + ': bottom edge inset 8 from the sticky bottom edge');
+    const two = tag(resized, sticky, ['Urgent', 'Later']).elements;
+    pillsOf(two).forEach((p) => {
+      assert.ok(p.x >= sticky.x && p.x + p.width <= sticky.x + width, width + 'x' + height + ': inside horizontally');
+      assert.ok(p.y >= sticky.y && p.y + p.height <= sticky.y + height, width + 'x' + height + ': inside vertically');
+    });
+  });
+});
+
 test('more than three tags collapse: the first two show, then a +N tag for the rest; the box still holds all of them', () => {
   const els = stickyWithText('x');
   const names = ['Urgent', 'Finance', 'Legal', 'Review', 'Later'];
