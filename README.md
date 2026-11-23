@@ -28,6 +28,42 @@ The server binds to 127.0.0.1 only, serves nothing except `viewer/` and that one
 everything else. Only open boards that you, or a tool you trust, made: a malicious board file is the likeliest way to
 exploit an old Excalidraw.
 
+## Sticky notes and tags
+
+A small bar at the bottom of the board adds Miro-style stickies. Nothing to install: it uses Excalidraw's own
+rectangles and text.
+
+| To do this | Do this |
+|---|---|
+| Add a sticky | Click a coloured **+** (yellow, green, blue or pink). A square sticky appears at the centre of the view and its text box opens: type, then press Escape |
+| Tag a sticky | Select the sticky, type its tags in the box, separated by commas (`Urgent, Finance`), press Enter |
+| Change or remove tags | Select the sticky, edit the list in the box, press Enter. Empty the box to remove them all. Escape leaves the box without changing anything |
+| Edit the text of a tagged sticky | Select it and press Enter. (A double-click works too, but a tagged sticky is in a group, so it takes two) |
+
+The next sticky goes beside the last one, and when a row reaches the edge of the view the next row starts below. A
+sticky stays selected when you press Escape after typing its text; if you left its text empty, click it before
+tagging.
+
+A sticky holds up to 10 tags of up to 20 characters each. They sit inside the sticky at its bottom right, in rows that
+fill upwards, whatever size the sticky has been resized to. To keep the sticky readable it draws at most three: with
+more than three tags it shows the first two and then **+N** for the rest, and a name longer than 8 characters is cut
+short with an ellipsis. The box always shows the full list.
+
+The box always edits the sticky it was opened for, even if you click another sticky before you press Enter. The tags
+drawn on a sticky are locked (Excalidraw's own lock): you cannot select, edit or drag one on its own, and a click or
+double-click on a tag acts on the sticky, so tags are changed only in the box. A tagged sticky and its tags are one
+group, so they move together; a copy (Ctrl or Cmd + D) gets its own tags. Undo (Ctrl or Cmd + Z) works for adding and
+tagging. A long sticky text can run under the tags: make the text shorter, or the tags fewer.
+
+Boards stay plain Excalidraw JSON, and the files saved are the same as any other board. A sticky is a rectangle with
+bound text and a tag is a small rounded rectangle with bound text; both carry a `customData` marker (`kind: "sticky"`
+or `kind: "sticky-tag"`) that Excalidraw keeps and ignores. The full list of tags is stored on the sticky
+(`customData.tags`) and the drawn tags, which carry `locked: true`, are a short view of it. Excalidraw's right-click
+menu has **Unlock all**, which frees every locked element on the board; if you then edit a drawn tag by hand, the list
+is not changed, and the next change in the box redraws the tags from the list, locked again. A tag belongs to the
+sticky it shares a group with. Excalidraw 0.17.6 without this bar loads them as plain rectangles with text (the tags
+locked); you just lose the bar. The rules live in `viewer/stickies.js`, the bar in `viewer/stickies-ui.js`.
+
 ## Saving and exporting
 
 Use Excalidraw's own menu (top left): **Save to...** or **Export image...**.
@@ -94,7 +130,8 @@ python3 scripts/vendor.py --check      # offline: compare every vendored file wi
 python3 scripts/vendor.py --refresh    # fetch the tarballs with npm pack --ignore-scripts, verify, copy
 ```
 
-Run the tests with `python3 -m unittest discover -s tests -v`.
+Run the tests with `python3 -m unittest discover -s tests -v`. The sticky tests run in Node 18 or later with no packages
+(`node --test tests/stickies.test.js`), and are skipped if Node is missing.
 
 ## Licence
 

@@ -15,7 +15,10 @@
       return React.createElement(ExcalidrawLib.Excalidraw, {
         initialData: initial,
         excalidrawAPI: function (api) { window.api = api; },
-        onChange: function (elements) { title(elements); },
+        onChange: function (elements, appState) {
+          title(elements);
+          if (window.stickiesUi) window.stickiesUi.sync(elements, appState);
+        },
       });
     };
     ReactDOM.createRoot(document.getElementById('app')).render(React.createElement(App));
